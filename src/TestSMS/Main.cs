@@ -1,0 +1,38 @@
+using System;
+using csammisrun.OscarLib;
+
+namespace TestSMS
+{
+	/// <summary>
+	/// Contains the program's entry point
+	/// </summary>
+	public class MainClass
+	{
+		[STAThread]
+		public static void Main()
+		{
+			string name = "<Uid for the ICQ acount>";
+			string password = "<password for the ICQ Acount>";
+			Console.WriteLine("Beginning login sequence");
+			SMSManager  mc = new SMSManager(name, password);
+			
+			string line;
+			while ((line = Console.ReadLine()) != "exit")
+			{
+				if (line.Equals("sendicq"))
+				{
+					mc.SendICQMessage("<the Uid Of>","<message to send>");
+				}
+				if (line.Equals("sendsms"))
+				{
+					mc.SendSMSMessage("<phone to send to (+972XXXXXXXXX)>","<messege to send>");
+				}
+				
+			}
+			
+			
+			
+
+		}
+	}
+}

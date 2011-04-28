@@ -1,0 +1,19 @@
+14/04/2011 14:07:08 - Connection 0 sent SNAC(17,06), 49 bytes
+2a 02 00 02 00 2b 00 17 00 06 00 00 00 00 00 00 	*....+..........
+00 01 00 15 6f 66 65 72 66 72 69 64 73 6d 73 40 	....oferfridsms@
+67 6d 61 69 6c 2e 63 6f 6d 00 4b 00 00 00 5a 00 	gmail.com.K...Z.
+00 	.
+
+14/04/2011 14:07:09 - Received close connection FLAP
+
+14/04/2011 14:07:09 - SNAC: (0017,0003), flags = 0000, requestID = 00000000
+FLAP: channel = 2, sequence = d6be, datasize = 74
+00 17 00 03 00 00 00 00 00 00 00 01 00 15 6f 66 	..............of
+65 72 66 72 69 64 73 6d 73 40 67 6d 61 69 6c 2e 	erfridsms@gmail.
+63 6f 6d 00 04 00 47 68 74 74 70 3a 2f 2f 77 77 	com...Ghttp://ww
+77 2e 61 69 6d 2e 63 6f 6d 2f 65 72 72 6f 72 73 	w.aim.com/errors
+2f 55 4e 52 45 47 49 53 54 45 52 45 44 5f 53 43 	/UNREGISTERED_SC
+52 45 45 4e 4e 41 4d 45 2e 68 74 6d 6c 3f 63 63 	REENNAME.html?cc
+6f 64 65 3d 75 73 26 6c 61 6e 67 3d 65 6e 00 08 	ode=us&lang=en..
+00 02 00 01 	....
+

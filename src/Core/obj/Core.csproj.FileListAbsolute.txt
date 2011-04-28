@@ -1,0 +1,12 @@
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\bin\Debug\OscarLib.xml
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\bin\Debug\OscarLib.dll
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\bin\Debug\OscarLib.pdb
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\obj\Debug\ResolveAssemblyReference.cache
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\obj\Debug\OscarLib.dll
+C:\Documents and Settings\oferfrid\Desktop\branches\arne\src\Core\obj\Debug\OscarLib.pdb
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\bin\Debug\OscarLib.xml
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\bin\Debug\OscarLib.dll
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\bin\Debug\OscarLib.pdb
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\obj\Debug\ResolveAssemblyReference.cache
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\obj\Debug\OscarLib.dll
+C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\Core\obj\Debug\OscarLib.pdb

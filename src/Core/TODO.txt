@@ -1,0 +1,13 @@
+TODO:
+ * Rearrange file transfer connections so that they are handled in ConnectionManager
+ 
+ * RendezvousData and FileManager are being handled in a very C-style.  Maybe object orient that a bit so that it looks prettier
+
+ * There appears to be a window between the processing of SNAC 13,06 and the Session being set to _loggedin where
+   the client can call SetBuddyIcon and nothing will happen.
+
+ * JoinChatRoom returns ChatRoomInfo right away, but there is a gap between when it's returned and when the actual
+   chat room connection is forged. Delayed packets don't exactly work on chat room connections. The CRI should
+   probably only be given to the user on a "Joined Chat" event
+
+what

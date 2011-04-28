@@ -1,0 +1,138 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.50727</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{E6598ED3-E3DC-4F50-981F-58CB6F3EAF82}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PocketOscarLib</RootNamespace>
+    <AssemblyName>PocketOscarLib</AssemblyName>
+    <ProjectTypeGuids>{4D628B5B-2FBC-4AA6-8C16-197242AEB884};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <PlatformFamilyName>WindowsCE</PlatformFamilyName>
+    <PlatformID>E2BECB1F-8C8C-41ba-B736-9BE7D946A398</PlatformID>
+    <OSVersion>5.0</OSVersion>
+    <DeployDirSuffix>PocketOscarLib</DeployDirSuffix>
+    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <FormFactorID>
+    </FormFactorID>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;$(PlatformFamilyName)</DefineConstants>
+    <NoStdLib>true</NoStdLib>
+    <NoConfig>true</NoConfig>
+    <ErrorReport>prompt</ErrorReport>
+    <FileAlignment>512</FileAlignment>
+    <WarningLevel>4</WarningLevel>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;WindowsCE</DefineConstants>
+    <NoStdLib>true</NoStdLib>
+    <NoConfig>true</NoConfig>
+    <ErrorReport>prompt</ErrorReport>
+    <FileAlignment>512</FileAlignment>
+    <WarningLevel>4</WarningLevel>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ConnectionHandlers\ChatConnection.cs" />
+    <Compile Include="ConnectionHandlers\Connection.cs" />
+    <Compile Include="ConnectionHandlers\DataPacket.cs" />
+    <Compile Include="ConnectionHandlers\DirectConnection.cs" />
+    <Compile Include="ConnectionHandlers\DirectIMConnection.cs" />
+    <Compile Include="ConnectionHandlers\Family.cs" />
+    <Compile Include="ConnectionHandlers\FileTransferConnection.cs" />
+    <Compile Include="ConnectionHandlers\PacketDispatcher.cs" />
+    <Compile Include="ConnectionHandlers\ProcessQueue.cs" />
+    <Compile Include="ConnectionHandlers\RateClass.cs" />
+    <Compile Include="Delegates.cs" />
+    <Compile Include="DirectIM.cs" />
+    <Compile Include="EnumsStructs\Capabilities.cs" />
+    <Compile Include="EnumsStructs\ChatRoomInfo.cs" />
+    <Compile Include="EnumsStructs\CommHeaders.cs" />
+    <Compile Include="EnumsStructs\DelayedFrame.cs" />
+    <Compile Include="EnumsStructs\DirectoryEntry.cs" />
+    <Compile Include="EnumsStructs\Environ.cs" />
+    <Compile Include="EnumsStructs\ICQStatusFlags.cs" />
+    <Compile Include="EnumsStructs\InterestItem.cs" />
+    <Compile Include="EnumsStructs\MessageFlags.cs" />
+    <Compile Include="EnumsStructs\OSCARIdentification.cs" />
+    <Compile Include="EnumsStructs\Privacy.cs" />
+    <Compile Include="EnumsStructs\RendezevousStructs.cs" />
+    <Compile Include="EnumsStructs\SNACFamilies.cs" />
+    <Compile Include="EnumsStructs\SNACSubtypes.cs" />
+    <Compile Include="EnumsStructs\SSIitem.cs" />
+    <Compile Include="EnumsStructs\TLV.cs" />
+    <Compile Include="EnumsStructs\TypingNotification.cs" />
+    <Compile Include="EnumsStructs\UndeliverableMessageReason.cs" />
+    <Compile Include="EnumsStructs\Userinfo.cs" />
+    <Compile Include="EventArgs.cs" />
+    <Compile Include="Logging.cs" />
+    <Compile Include="Marshal.cs" />
+    <Compile Include="ObjectManagers\ChatRoomManager.cs" />
+    <Compile Include="ObjectManagers\ConnectionManager.cs" />
+    <Compile Include="ObjectManagers\FamilyManager.cs" />
+    <Compile Include="ObjectManagers\IcqManager.cs" />
+    <Compile Include="ObjectManagers\LimitManager.cs" />
+    <Compile Include="ObjectManagers\MessageManager.cs" />
+    <Compile Include="ObjectManagers\RateClassManager.cs" />
+    <Compile Include="ObjectManagers\RendezvousManager.cs" />
+    <Compile Include="ObjectManagers\SSIManager.cs" />
+    <Compile Include="ObjectManagers\StatusManager.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Session.cs" />
+    <Compile Include="SNACs\SNAC01.cs" />
+    <Compile Include="SNACs\SNAC02.cs" />
+    <Compile Include="SNACs\SNAC06.cs" />
+    <Compile Include="SNACs\SNAC08.cs" />
+    <Compile Include="SNACs\SNAC09.cs" />
+    <Compile Include="SNACs\SNAC0A.cs" />
+    <Compile Include="SNACs\SNAC0B.cs" />
+    <Compile Include="SNACs\SNAC0F.cs" />
+    <Compile Include="SNACs\SNAC10.cs" />
+    <Compile Include="SNACs\SNAC13.cs" />
+    <Compile Include="SNACs\SNAC15.cs" />
+    <Compile Include="SNACs\SNAC17.cs" />
+    <Compile Include="SNACs\SNAC18.cs" />
+    <Compile Include="SNACs\SNACFunctions.cs" />
+    <Compile Include="StaticData\Constants.cs" />
+    <Compile Include="StaticData\Definitions.cs" />
+    <Compile Include="Utilities\ByteStream.cs" />
+    <Compile Include="Utilities\CapabilityProcessor.cs" />
+    <Compile Include="Utilities\IconVerifier.cs" />
+    <Compile Include="Utilities\ScreennameVerifier.cs" />
+    <Compile Include="Utilities\TlvBlock.cs" />
+    <Compile Include="Utilities\UtilityMethods.cs" />
+  </ItemGroup>
+  <Import Condition="'$(TargetFrameworkVersion)' == 'v1.0'" Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.v1.targets" />
+  <Import Condition="'$(TargetFrameworkVersion)' == 'v2.0'" Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}">
+        <HostingProcess disable="1" />
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

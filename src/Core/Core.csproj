@@ -1,0 +1,306 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="2.0">
+  <PropertyGroup>
+    <ProjectType>Local</ProjectType>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{86573648-6F6B-4C18-84D1-2FD904EA31BC}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ApplicationIcon>
+    </ApplicationIcon>
+    <AssemblyKeyContainerName>
+    </AssemblyKeyContainerName>
+    <AssemblyName>OscarLib</AssemblyName>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <DefaultClientScript>JScript</DefaultClientScript>
+    <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+    <DefaultTargetSchema>IE50</DefaultTargetSchema>
+    <DelaySign>false</DelaySign>
+    <OutputType>Library</OutputType>
+    <RootNamespace>csammisrun.OscarLib</RootNamespace>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+    <StartupObject>
+    </StartupObject>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkProfile />
+    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\OscarLib.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>
+    </NoWarn>
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>TRACE</DefineConstants>
+    <DocumentationFile>bin\Release\OscarLib.xml</DocumentationFile>
+    <DebugSymbols>false</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>
+    </NoWarn>
+    <Optimize>true</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>none</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'AutomatedDebug|AnyCPU' ">
+    <OutputPath>..\..\build\Debug\Core\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>..\..\build\Debug\OscarLib.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>
+    </NoWarn>
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System">
+      <Name>System</Name>
+    </Reference>
+    <Reference Include="System.Data">
+      <Name>System.Data</Name>
+    </Reference>
+    <Reference Include="System.Windows.Forms">
+      <Name>System.Windows.Forms</Name>
+    </Reference>
+    <Reference Include="System.Xml">
+      <Name>System.Xml</Name>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ConnectionHandlers\ChatConnection.cs" />
+    <Compile Include="ConnectionHandlers\Connection.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ConnectionHandlers\DataPacket.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ConnectionHandlers\DirectConnection.cs" />
+    <Compile Include="ConnectionHandlers\DirectIMConnection.cs" />
+    <Compile Include="ConnectionHandlers\Family.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ConnectionHandlers\FileTransferConnection.cs" />
+    <Compile Include="ConnectionHandlers\PacketDispatcher.cs" />
+    <Compile Include="ConnectionHandlers\ProcessQueue.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ConnectionHandlers\RateClass.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Delegates.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DirectIM.cs" />
+    <Compile Include="EnumsStructs\Capabilities.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\ChatRoomInfo.cs" />
+    <Compile Include="EnumsStructs\CommHeaders.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\DelayedFrame.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\DirectoryEntry.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\Environ.cs" />
+    <Compile Include="EnumsStructs\RendezevousStructs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\ICQStatusFlags.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\InterestItem.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\OSCARIdentification.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\Privacy.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\SNACFamilies.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\SNACSubtypes.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\SSIitem.cs" />
+    <Compile Include="EnumsStructs\TypingNotification.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\Userinfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EventArgs.cs" />
+    <Compile Include="ISession.cs" />
+    <Compile Include="Logging.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Marshal.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectManagers\ChatRoomManager.cs" />
+    <Compile Include="ObjectManagers\ConnectionManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectManagers\FamilyManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectManagers\GraphicsManager.cs" />
+    <Compile Include="ObjectManagers\IcqManager.cs" />
+    <Compile Include="ObjectManagers\LimitManager.cs" />
+    <Compile Include="ObjectManagers\MessageManager.cs" />
+    <Compile Include="ObjectManagers\RateClassManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectManagers\SSIManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectManagers\StatusManager.cs" />
+    <Compile Include="ObjectManagers\ServiceManager.cs" />
+    <Compile Include="Session.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC02.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC06.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC08.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC09.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC0A.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC0B.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC0F.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC13.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC15.cs" />
+    <Compile Include="SNACs\SNAC17.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNAC18.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SNACs\SNACFunctions.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="StaticData\Constants.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="StaticData\Definitions.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="EnumsStructs\TLV.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Utilities\ByteStream.cs" />
+    <Compile Include="Utilities\CapabilityProcessor.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Utilities\IconVerifier.cs" />
+    <Compile Include="Utilities\ScreennameVerifier.cs" />
+    <Compile Include="Utilities\TlvBlock.cs" />
+    <Compile Include="Utilities\UtilityMethods.cs" />
+    <Content Include="TODO.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

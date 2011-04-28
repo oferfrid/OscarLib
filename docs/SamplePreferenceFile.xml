@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8" ?> 
+<!-- Preference file for #aim -->
+<Preferences>
+    <Accounts>
+    </Accounts>
+    <Away_Messages>
+        <Message name="Default">It's a dirty #aim, but I'm not here right now</Message>
+    </Away_Messages>
+    <Buddy_List>
+        <SortOrder groups="None" names="None" />
+    </Buddy_List>
+    <Colors>
+    </Colors>
+    <Conversations>
+    </Conversations>
+    <Fonts>
+    </Fonts>
+    <Logging>
+    </Logging>
+    <Sounds>
+    </Sounds>
+</Preferences>
