@@ -56,7 +56,7 @@ namespace TestSMS
 
 		private void sess_MessageReceived(object sender, MessageReceivedEventArgs e)
 		{
-			//Console.WriteLine("ICBM message received from {0}: {1}", e.Message.ScreenName, e.Message.Message);
+			Console.WriteLine("ICBM message received from {0}: {1}", e.Message.ScreenName, e.Message.Message);
 		}
 
 

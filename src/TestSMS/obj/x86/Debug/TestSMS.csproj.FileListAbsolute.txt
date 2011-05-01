@@ -1,8 +1,0 @@
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\obj\x86\Debug\ResolveAssemblyReference.cache
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\bin\Debug\TestSMS.exe
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\bin\Debug\TestSMS.pdb
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\bin\Debug\OscarLib.dll
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\bin\Debug\OscarLib.pdb
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\bin\Debug\OscarLib.xml
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\obj\x86\Debug\TestSMS.exe
-C:\Documents and Settings\oferfrid\Desktop\branchesOfer\arne\src\TestSMS\obj\x86\Debug\TestSMS.pdb
