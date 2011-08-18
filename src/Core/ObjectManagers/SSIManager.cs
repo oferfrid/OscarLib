@@ -53,11 +53,6 @@ namespace csammisrun.OscarLib
         /// </summary>
         public List<ushort> Children = null;
 
-        /// <summary>
-        /// The order of the group in the master list
-        /// </summary>
-        public int Order = 0;
-
         #region IServerSideItem Members
 
         /// <summary>
@@ -180,6 +175,15 @@ namespace csammisrun.OscarLib
         /// The reason message that can be transmitted, if authorization is required
         /// </summary>
         public string AuthorizationReason = "";
+
+        /// <summary>
+        /// This is set when a contact ads you to his contactlist, needed for extended contact info ???
+        /// </summary>
+        public byte[] MetaInfoToken = null;
+        /// <summary>
+        /// This is set when a contact ads you to his contactlist, ???
+        /// </summary>
+        public double MetaInfoTime = 0;
 
         /// <summary>
         /// Creates a new SSIBuddy object
@@ -484,6 +488,8 @@ namespace csammisrun.OscarLib
         private const int SSI_BUDDY_AUTHORIZE = 0x0066;
         private const int SSI_BUDDY_AUTHREASON = 0x015b;
         private const int SSI_BUDDY_DATA = 0x006D;
+        private const int SSI_BUDDY_METATOKEN = 0x015c;
+        private const int SSI_BUDDY_METATIME = 0x015d;
 
         private const int SSI_TYPE_GROUP = 0x0001;
         private const int SSI_GROUP_CHILDREN = 0x00C8;
@@ -501,7 +507,7 @@ namespace csammisrun.OscarLib
         private const int SSI_ICON_HASH = 0x00D5;
         private const int SSI_ICON_PERSIST = 0x0131;
 
-		private readonly ISession parentSession;
+        private readonly Session parentSession;
         private int _groupcount = 0;
         private int _buddycount = 0;
         private SSIIcon iconitem = null;
@@ -519,7 +525,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Creates a new SSIManager
         /// </summary>
-		public SSIManager(ISession parent)
+        public SSIManager(Session parent)
         {
             parentSession = parent;
         }
@@ -539,7 +545,7 @@ namespace csammisrun.OscarLib
                     if (si.GroupID != 0)
                         CreateGroup(si, false);
                     else
-                        CreateMasterGroup(si);
+                        CreateMasterGroup(si, false);
                     break;
                 case SSIManager.SSI_TYPE_PERMIT:
                     CreatePermit(si);
@@ -571,7 +577,10 @@ namespace csammisrun.OscarLib
             switch (si.ItemType)
             {
                 case SSIManager.SSI_TYPE_GROUP:
-                    CreateGroup(si, true);
+                    if (si.GroupID != 0)
+                        CreateGroup(si, true);
+                    else
+                        CreateMasterGroup(si, true);
                     break;
             }
         }
@@ -595,12 +604,19 @@ namespace csammisrun.OscarLib
 
         #region Group items
 
-        private Dictionary<ushort, int> order = new Dictionary<ushort, int>();
-
-        internal void CreateMasterGroup(SSIItem item)
+        internal void CreateMasterGroup(SSIItem item, bool modify)
         {
-            SSIGroup group = new SSIGroup();
-            group.ID = item.GroupID;
+            SSIGroup group = null;
+            if (!modify) 
+            {
+                group = new SSIGroup();
+                group.ID = item.GroupID;
+            } 
+            else 
+            {
+                group = GetGroupByID(item.GroupID);
+            }
+
             group.Name = item.Name;
 
             using (ByteStream stream = new ByteStream(item.Tlvs.ReadByteArray(SSI_GROUP_CHILDREN)))
@@ -610,15 +626,17 @@ namespace csammisrun.OscarLib
                 for (int k = 0; k < numgroups; k++)
                 {
                     ushort childId = stream.ReadUshort();
-                    order.Add(childId, k);
                     group.Children.Add(childId);
                 }
             }
 
-            lock (this)
+            if (!modify)
             {
-                allItems.Add(group);
-                masterGroup = group;
+                lock (this)
+                {
+                    allItems.Add(group);
+                    masterGroup = group;
+                }
             }
         }
 
@@ -642,14 +660,6 @@ namespace csammisrun.OscarLib
             }
 
             group.Name = item.Name;
-            if (order.ContainsKey(group.ID))
-            {
-                group.Order = order[group.ID];
-            }
-            else
-            {
-                group.Order = 0;
-            }
 
             using (ByteStream stream = new ByteStream(item.Tlvs.ReadByteArray(SSI_GROUP_CHILDREN)))
             {
@@ -840,7 +850,7 @@ namespace csammisrun.OscarLib
             SSIGroup parent = GetGroupByID(groupID);
             int length = (parent.Children != null) ? parent.Children.Count : 0;
             if (index > length)
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException("index", "The index value is higher then existing contacts at this group");
 
             if (parent == null)
             {
@@ -862,8 +872,10 @@ namespace csammisrun.OscarLib
             //    Array.Copy(parent.Children, index, copychildren, index+1, parent.Children.Length - index);
             //}
             //copychildren[index] = childID;
-            if(parent.Children != null)
-             parent.Children.Add(childID);
+            if (parent.Children == null)
+                parent.Children = new List<ushort>();
+
+            parent.Children.Insert(index, childID);
 
             // Copy the children into a byte array
             int currindex = 0;
@@ -896,9 +908,7 @@ namespace csammisrun.OscarLib
             }
 
             if (parent.Children == null)
-            {
                 parent.Children = new List<ushort>();
-            }
 
             parent.Children.Add(childID);
 
@@ -939,16 +949,15 @@ namespace csammisrun.OscarLib
                 return;
             }
 
-            SSIItem modification = new SSIItem();
-            modification.GroupID = parent.ID;
-            modification.ItemID = 0;
-            modification.ItemType = SSIManager.SSI_TYPE_GROUP;
-            modification.Name = parent.Name;
-
             int shiftindex = parent.Children.IndexOf(childID);
-            ushort temp = parent.Children[shiftindex];
-            parent.Children[shiftindex] = parent.Children[index];
-            parent.Children[index] = temp;
+            if (shiftindex == index || shiftindex == -1)
+            {
+                // Nothing will be moved or no child found
+                return;
+            }
+
+            parent.Children.RemoveAt(shiftindex);
+            parent.Children.Insert(index < shiftindex ? index : index - 1, childID);
 
             int currindex = 0;
             byte[] newchildren = new byte[length*2];
@@ -959,9 +968,15 @@ namespace csammisrun.OscarLib
 
             TlvBlock tlvs = new TlvBlock();
             tlvs.WriteByteArray(SSI_GROUP_CHILDREN, newchildren);
+
+            SSIItem modification = new SSIItem();
+            modification.GroupID = parent.ID;
+            modification.ItemID = 0;
+            modification.ItemType = SSIManager.SSI_TYPE_GROUP;
+            modification.Name = parent.Name;
             modification.Tlvs = tlvs;
 
-            SNAC13.ModifySSIItems(parentSession, new SSIItem[] {modification});
+            SNAC13.ModifySSIItems(parentSession, new SSIItem[] { modification });
         }
 
         /// <summary>
@@ -1012,10 +1027,13 @@ namespace csammisrun.OscarLib
         {
             if (buddy.GroupID != destination.ID)
             {
+                SNAC13.SendEditStart(parentSession);
                 this.RemoveBuddy(buddy);
-                this.AddBuddy(buddy.Name, destination.ID, index,
+                this.AddModifyBuddy(buddy.Name, destination.ID, index,
                               buddy.DisplayName, buddy.Email, buddy.SMS, buddy.Comment, buddy.SoundFile,
-                              buddy.AwaitingAuthorization, buddy.AuthorizationReason);
+                              buddy.AwaitingAuthorization, buddy.AuthorizationReason, 
+                              buddy.MetaInfoToken, buddy.MetaInfoTime, null, false);
+                SNAC13.SendEditComplete(parentSession);
             }
             else
             {
@@ -1050,7 +1068,7 @@ namespace csammisrun.OscarLib
                 ushort[] children = group.Children.ToArray();
                 foreach (ushort child in children)
                 {
-                    RemoveBuddy(GetBuddyByID(child, group.ID));
+                    RemoveBuddy(GetBuddyByID(child));
                 }
             }
 
@@ -1129,6 +1147,9 @@ namespace csammisrun.OscarLib
             buddy.Alerts = item.Tlvs.ReadUshort(SSI_BUDDY_ALERTS);
             buddy.SoundFile = item.Tlvs.ReadString(SSI_BUDDY_SOUNDFILE, Encoding.ASCII);
             buddy.AwaitingAuthorization = item.Tlvs.HasTlv(SSI_BUDDY_AUTHORIZE);
+            buddy.MetaInfoToken = item.Tlvs.ReadByteArray(SSI_BUDDY_METATOKEN);
+            buddy.MetaInfoTime = item.Tlvs.ReadDouble(SSI_BUDDY_METATIME);
+            
 
             AddSSIBuddyToManager(buddy);
             parentSession.OnBuddyItemReceived(buddy);
@@ -1139,16 +1160,36 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="buddyid">The ID number of the buddy to return</param>
         /// <param name="groupid">The ID number of the group to which the buddy belongs</param>
-        /// <returns>An <see cref="SSIBuddy"/> object, or <c>null</c>
-        /// if the buddy ID does not exist</returns>
-        public SSIBuddy GetBuddyByID(ushort buddyid, ushort groupid)
+        /// <returns>An <see cref="SSIBuddy"/> object, or <c>null</c> if the buddy ID does not exist</returns>
+        public SSIBuddy GetBuddyByID(ushort buddyid)
         {
             lock (this)
             {
                 for (int i = 0, j = allItems.Count; i < j; i++)
                 {
                     SSIBuddy item = allItems[i] as SSIBuddy;
-                    if (item != null && item.ID == buddyid && item.GroupID == groupid)
+                    if (item != null && item.ID == buddyid)
+                    {
+                        return item;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets a single buddy by its Screenname
+        /// </summary>
+        /// <param name="screenname">The Screenname of the buddy to return</param>
+        /// <returns>An <see cref="SSIBuddy"/> object, or <c>null</c> if the buddy ID does not exist</returns>
+        public SSIBuddy GetBuddyByName(string screenname)
+        {
+            lock (this)
+            {
+                for (int i = 0, j = allItems.Count; i < j; i++)
+                {
+                    SSIBuddy item = allItems[i] as SSIBuddy;
+                    if (item != null && item.Name == screenname)
                     {
                         return item;
                     }
@@ -1177,12 +1218,10 @@ namespace csammisrun.OscarLib
         /// </remarks>
         [Obsolete("This method is obsolete and will be removed soon. Use the overloaded AddBuddy method without the index parameter.")]
         public SSIBuddy AddBuddy(string name, ushort parentID, int index, string alias,
-                                 string email, string SMS, string comment, string soundfile, bool authorizationRequired,
-                                 string authorizationReason)
+                                 string email, string SMS, string comment, string soundfile, 
+                                 bool authorizationRequired, string authorizationReason)
         {
-            return
-                AddModifyBuddy(name, parentID, index, alias, email, SMS, comment, soundfile, authorizationRequired,
-                               authorizationReason, null);
+            return AddModifyBuddy(name, parentID, index, alias, email, SMS, comment, soundfile, authorizationRequired, authorizationReason, null, double.MaxValue, null);
         }
 
         /// <summary>
@@ -1208,7 +1247,7 @@ namespace csammisrun.OscarLib
         {
             return
                 AddModifyBuddy(name, parentID, alias, email, SMS, comment, soundfile, authorizationRequired,
-                               authorizationReason, null);
+                               authorizationReason, null, double.MaxValue, null);
         }
 
         /// <summary>
@@ -1230,7 +1269,7 @@ namespace csammisrun.OscarLib
         public SSIBuddy AddBuddy(string name, ushort parentID, int index, string alias,
                                  string email, string SMS, string comment, string soundfile)
         {
-            return AddModifyBuddy(name, parentID, index, alias, email, SMS, comment, soundfile, false, "", null);
+            return AddModifyBuddy(name, parentID, index, alias, email, SMS, comment, soundfile, false, "", null, double.MaxValue, null);
         }
 
         /// <summary>
@@ -1246,7 +1285,7 @@ namespace csammisrun.OscarLib
         /// </remarks>
         public void ModifyBuddy(SSIBuddy changebuddy)
         {
-            AddModifyBuddy("", 0xFFFF, -1, "", "", "", "", "", false, "", changebuddy);
+            AddModifyBuddy("", 0xFFFF, -1, "", "", "", "", "", false, "", null, double.MaxValue, changebuddy);
         }
 
         /// <summary>
@@ -1258,6 +1297,15 @@ namespace csammisrun.OscarLib
             RemoveSSIBuddyFromManager(buddy);
             this.RemoveSSIItem(SSIManager.SSI_TYPE_BUDDY, buddy.ID, buddy.GroupID, buddy.Name);
             this.RemoveChildFromGroup(buddy.GroupID, buddy.ID);
+        }
+
+        /// <summary>
+        /// Delete yourself from another client server-side contact list.
+        /// </summary>
+        /// <param name="screenname">The others ScreenName</param>
+        public void RemoveYourself(string screenname)
+        {
+            SNAC13.RemoveMySSIItem(parentSession, screenname);
         }
 
         internal void RemoveBuddyFromServer(SSIItem buddy)
@@ -1297,16 +1345,21 @@ namespace csammisrun.OscarLib
         /// <param name="soundfile">The path of a local soundfile associated with this buddy</param>
         /// <param name="authorizationRequired">Determines if u need to be authorized by the buddy</param>
         /// <param name="authorizationReason">The authorization reason/message that will be send to the buddy</param>
+        /// <param name="metatoken">The metatoken sended at login, it's needed for <see cref="IcqManager.RequestFullUserInfo"/></param>
+        /// <param name="metatime">The metatime sended at login</param>
         /// <param name="original">The original <see cref="SSIBuddy"/> object if this is a modification
+        /// <param name="sendedit">If you want to send begin and end edit for the process</param>
         /// operation, or <c>null</c> if this is a creation operation</param>
         /// <returns></returns>
         [Obsolete("This method is obsolete and will be removed soon. Use the overloaded AddModifyBuddy method without the index parameter.")]
         protected internal SSIBuddy AddModifyBuddy(string name, ushort parentID, int index, string alias,
                                                    string email, string SMS, string comment, string soundfile,
                                                    bool authorizationRequired, string authorizationReason,
-                                                   SSIBuddy original)
+                                                   byte[] metatoken, double metatime,
+                                                   SSIBuddy original, bool sendedit = true)
         {
             ushort newid = 0;
+
             if (original != null)
             {
                 newid = original.ID;
@@ -1316,6 +1369,8 @@ namespace csammisrun.OscarLib
                 email = original.Email;
                 soundfile = original.SoundFile;
                 authorizationRequired = original.AwaitingAuthorization;
+                metatoken = original.MetaInfoToken;
+                metatime = original.MetaInfoTime;
             }
             else
             {
@@ -1343,6 +1398,10 @@ namespace csammisrun.OscarLib
                 newitem.Tlvs.WriteString(SSIManager.SSI_BUDDY_AUTHREASON, authorizationReason, Encoding.ASCII);
             if (authorizationRequired)
                 newitem.Tlvs.WriteEmpty(SSIManager.SSI_BUDDY_AUTHORIZE);
+            if (metatoken != null)
+                newitem.Tlvs.WriteByteArray(SSIManager.SSI_BUDDY_METATOKEN, metatoken);
+            if (metatime != double.MaxValue)
+                newitem.Tlvs.WriteDouble(SSIManager.SSI_BUDDY_METATIME, metatime);
 
             SSIBuddy store = new SSIBuddy(newid);
             store.Name = name;
@@ -1352,8 +1411,11 @@ namespace csammisrun.OscarLib
             store.SMS = SMS;
             store.Comment = comment;
             store.SoundFile = soundfile;
+            store.MetaInfoToken = metatoken;
+            store.MetaInfoTime = metatime;
 
-            SNAC13.SendEditStart(parentSession);
+            if (sendedit) SNAC13.SendEditStart(parentSession);
+
             if (original == null)
             {
                 AddSSIBuddyToManager(store);
@@ -1363,7 +1425,7 @@ namespace csammisrun.OscarLib
             else
                 SNAC13.ModifySSIItems(parentSession, new SSIItem[] {newitem});
 
-            SNAC13.SendEditComplete(parentSession);
+            if (sendedit) SNAC13.SendEditComplete(parentSession);
 
             return store;
         }
@@ -1380,15 +1442,19 @@ namespace csammisrun.OscarLib
         /// <param name="soundfile">The path of a local soundfile associated with this buddy</param>
         /// <param name="authorizationRequired">Determines if u need to be authorized by the buddy</param>
         /// <param name="authorizationReason">The authorization reason/message that will be send to the buddy</param>
+        /// <param name="metatoken">The metatoken sended at login, it's needed for <see cref="IcqManager.RequestFullUserInfo"/></param>
+        /// <param name="metatime">The metatime sended at login</param>
         /// <param name="original">The original <see cref="SSIBuddy"/> object if this is a modification
+        /// <param name="sendedit">If you want to send begin and end edit for the process</param>
         /// operation, or <c>null</c> if this is a creation operation</param>
         /// <returns>The buddy object</returns>
         protected internal SSIBuddy AddModifyBuddy(string name, ushort parentID, string alias,
-                                           string email, string SMS, string comment, string soundfile,
-                                           bool authorizationRequired, string authorizationReason,
-                                           SSIBuddy original)
-        {
+                                                   string email, string SMS, string comment, string soundfile,
+                                                   bool authorizationRequired, string authorizationReason,
+                                                   byte[] metatoken, double metatime,
+                                                   SSIBuddy original, bool sendedit = true) {
             ushort newid = 0;
+ 
             if (original != null)
             {
                 newid = original.ID;
@@ -1398,6 +1464,8 @@ namespace csammisrun.OscarLib
                 email = original.Email;
                 soundfile = original.SoundFile;
                 authorizationRequired = original.AwaitingAuthorization;
+                metatoken = original.MetaInfoToken;
+                metatime = original.MetaInfoTime;
             }
             else
             {
@@ -1426,6 +1494,10 @@ namespace csammisrun.OscarLib
                 newitem.Tlvs.WriteString(SSIManager.SSI_BUDDY_AUTHREASON, authorizationReason, Encoding.ASCII);
             if (authorizationRequired)
                 newitem.Tlvs.WriteEmpty(SSIManager.SSI_BUDDY_AUTHORIZE);
+            if (metatoken != null)
+                newitem.Tlvs.WriteByteArray(SSIManager.SSI_BUDDY_METATOKEN, metatoken);
+            if (metatime != double.MaxValue)
+                newitem.Tlvs.WriteDouble(SSIManager.SSI_BUDDY_METATIME, metatime);
 
             SSIBuddy store = new SSIBuddy(newid);
             store.Name = name;
@@ -1435,8 +1507,11 @@ namespace csammisrun.OscarLib
             store.SMS = SMS;
             store.Comment = comment;
             store.SoundFile = soundfile;
+            store.MetaInfoToken = metatoken;
+            store.MetaInfoTime = metatime;
 
-            SNAC13.SendEditStart(parentSession);
+            if (sendedit) SNAC13.SendEditStart(parentSession);
+
             if (original == null)
             {
                 AddSSIBuddyToManager(store);
@@ -1446,7 +1521,7 @@ namespace csammisrun.OscarLib
             else
                 SNAC13.ModifySSIItems(parentSession, new SSIItem[] { newitem });
 
-            SNAC13.SendEditComplete(parentSession);
+            if (sendedit) SNAC13.SendEditComplete(parentSession);
 
             return store;
         }
@@ -1921,7 +1996,6 @@ namespace csammisrun.OscarLib
         internal void ResetContactList()
         {
             allItems.Clear();
-            this.order.Clear();
         }
 
         internal ushort GetLocalSSIItemCount()

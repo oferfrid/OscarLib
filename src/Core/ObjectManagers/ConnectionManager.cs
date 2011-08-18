@@ -9,13 +9,14 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
 
 namespace csammisrun.OscarLib.Utility
 {
     /// <summary>
     /// Manages relationships between SNAC families and OSCAR connections
     /// </summary>
-    public class ConnectionManager
+    internal class ConnectionManager
     {
         private Connection _bos = null;
         private ArrayList _chatconnections = new ArrayList();
@@ -23,12 +24,25 @@ namespace csammisrun.OscarLib.Utility
         private Hashtable _delayedpackets = new Hashtable();
         private List<DirectConnection> _directconnections = new List<DirectConnection>();
         private int _id = 0;
-		private ISession _parent = null;
+        private Session _parent = null;
+
+        private IPAddress _localexternalip = null;
+        private IPAddress _localinternalip = null;
+
+        public IPAddress LocalExternalIP {
+            get { return _localexternalip; }
+            set { _localexternalip = value; }
+        }
+
+        public IPAddress LocalInternalIP {
+            get { return _localinternalip; }
+            set { _localinternalip = value; }
+        }
 
         /// <summary>
         /// Initializes the ConnectionManager
         /// </summary>
-		public ConnectionManager(ISession parent)
+        public ConnectionManager(Session parent)
         {
             _parent = parent;
         }
@@ -182,11 +196,11 @@ namespace csammisrun.OscarLib.Utility
                 {
                     if (conn == _bos)
                     {
-                        _parent.OnError(ServerErrorCode.LostBOSConnection);
+                        _parent.OnError(ServerErrorCode.LostBOSConnection, null);
                     }
                     else
                     {
-                        _parent.OnWarning(ServerErrorCode.LostSecondaryConnection);
+                        _parent.OnWarning(ServerErrorCode.LostSecondaryConnection, null);
                     }
                 }
                 else
@@ -203,7 +217,7 @@ namespace csammisrun.OscarLib.Utility
                         }
                         else
                         {
-                            _parent.OnWarning(ServerErrorCode.LostSecondaryConnection);
+                            _parent.OnWarning(ServerErrorCode.LostSecondaryConnection, null);
                         }
                     }
                 }

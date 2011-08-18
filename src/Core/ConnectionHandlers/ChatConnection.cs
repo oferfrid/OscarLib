@@ -14,7 +14,7 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// This is not a real connection
     /// </summary>
-    public class ChatInvitationConnection : DirectConnection
+    internal class ChatInvitationConnection : DirectConnection
     {
         #region Chat room invitation caching
 
@@ -38,7 +38,7 @@ namespace csammisrun.OscarLib.Utility
         public ChatInvitation ChatInvite = null;
         public ChatRoom ChatRoom = null;
 
-		public ChatInvitationConnection(ISession parent, int id, DirectConnectRole role)
+        public ChatInvitationConnection(Session parent, int id, DirectConnectRole role)
             : base(parent, id, DirectConnectionMethod.Direct, role)
         {
         }
@@ -47,17 +47,17 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// Encapsulates a connection to an OSCAR chat room
     /// </summary>
-    public class ChatConnection : Connection
+    internal class ChatConnection : Connection
     {
         private ChatRoom _roominfo;
 
         /// <summary>
         /// Creates a new chat connection
         /// </summary>
-        /// <param name="parent">The <see cref="ISession"/> that owns this connection</param>
+        /// <param name="parent">The <see cref="Session"/> that owns this connection</param>
         /// <param name="id">The connection's unique ID</param>
         /// <param name="roominfo">A <see cref="ChatRoom"/> object</param>
-		public ChatConnection(ISession parent, int id, ChatRoom roominfo)
+        public ChatConnection(Session parent, int id, ChatRoom roominfo)
             : base(parent, id)
         {
             _roominfo = roominfo;

@@ -40,9 +40,17 @@ namespace csammisrun.OscarLib
         /// </summary>
         private const int LOCATION_PARAMETER_USERINFO = 0x0004;
         /// <summary>
+        /// The subtype for requesting basic user information
+        /// </summary>
+        private const int LOCATION_REQUEST_BASIC_INFO = 0x0005;
+        /// <summary>
         /// The subtype for user information notification
         /// </summary>
         private const int LOCATION_USER_INFO = 0x0006;
+        /// <summary>
+        /// The subtype for requesting all user information
+        /// </summary>
+        private const int LOCATION_REQUEST_ALL_INFO = 0x0015;
         /// <summary>
         /// The SNAC family that handles buddy state information
         /// </summary>
@@ -105,19 +113,22 @@ namespace csammisrun.OscarLib
         private const int PARAMETER_MAXWATCHERS = 0x0002;
         #endregion
 
-		private readonly ISession parent;
+        private readonly Session parent;
         private int maxBuddyListEntries;
         private int maxWatcherListEntries;
         private int maxNotifications;
         private int maxCapabilities;
         private int maxProfileLength;
 
-        private string localProfile;
+        private string localProfile = "";
+        private string availableMessage = "";
+        private ICQFlags icqFlags = ICQFlags.Normal;
+        private ICQStatus icqStatus = ICQStatus.Online;
 
         /// <summary>
         /// Initializes a new StatusManager
         /// </summary>
-		internal StatusManager(ISession parent)
+        internal StatusManager(Session parent)
         {
             this.parent = parent;
             parent.Dispatcher.RegisterSnacFamilyHandler(this, SNAC_LOCATION_FAMILY);
@@ -140,6 +151,54 @@ namespace csammisrun.OscarLib
 
         #region Public methods
         /// <summary>
+        /// Requests a single type of user information from the server
+        /// </summary>
+        /// <param name="screenname">The screenname to get information about</param>
+        /// <param name="requesttype">The type of information to retrieve</param>
+        /// <remarks>Results are returned by the <see cref="UserInfoReceived"/> event</remarks>
+        public void RequestBasicUserInfo(string screenname, BasicUserInfoRequest requesttype)
+        {
+            // Build SNAC(02,05)
+            SNACHeader sh = new SNACHeader();
+            sh.FamilyServiceID = SNAC_LOCATION_FAMILY;
+            sh.FamilySubtypeID = LOCATION_REQUEST_BASIC_INFO;
+
+            ByteStream stream = new ByteStream();
+            stream.WriteUshort((ushort)requesttype);
+            stream.WriteByte((byte)Encoding.ASCII.GetByteCount(screenname));
+            stream.WriteString(screenname, Encoding.ASCII);
+
+            SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(parent, sh, stream));
+        }
+
+        /// <summary>
+        /// Requests all user information from the server
+        /// </summary>
+        /// <param name="screenname">The screenname to get information about</param>
+        /// <remarks>Results are returned by the <see cref="UserInfoReceived"/> event</remarks>
+        public void RequestAllUserInfo(string screenname)
+        {
+            //KSD-SYSTEMS - commented at 24.02.2010 -> I want AllUserInfo, no Redirect
+            // If the requested information is an ICQ name, redirect this
+            //if (ScreennameVerifier.IsValidICQ(screenname))
+            //{
+            //    RequestBasicUserInfo(screenname, BasicUserInfoRequest.AwayMessage);
+            //    return;
+            //}
+
+            // Build SNAC(02,15)
+            SNACHeader sh = new SNACHeader();
+            sh.FamilyServiceID = SNAC_LOCATION_FAMILY;
+            sh.FamilySubtypeID = LOCATION_REQUEST_ALL_INFO;
+
+            ByteStream stream = new ByteStream();
+            stream.WriteUint((uint)(UserInfoRequest.AwayMessage | UserInfoRequest.Capabilities | UserInfoRequest.UserProfile));
+            stream.WriteByte((byte)Encoding.ASCII.GetByteCount(screenname));
+            stream.WriteString(screenname, Encoding.ASCII);
+            SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(parent, sh, stream));
+        }
+
+        /// <summary>
         /// Sets the client's idle time.
         /// </summary>
         /// <param name="seconds">The client's idle time, in seconds</param>
@@ -160,7 +219,7 @@ namespace csammisrun.OscarLib
         /// <code>s.SetIdleTime(0);</code>
         /// </para>
         /// </remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public void SetIdleTime(uint seconds)
         {
             if (!parent.LoggedIn)
@@ -171,8 +230,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = 0x0001;
             sh.FamilySubtypeID = 0x0011;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteUint(seconds);
@@ -204,7 +263,7 @@ namespace csammisrun.OscarLib
         /// <remarks>
         /// <para>
         /// The session must be logged in for this function to succeed. Calling SetAwayMessage
-		/// before a successful login is achieved (i.e., when the <see cref="ISession.LoginCompleted"/> event
+        /// before a successful login is achieved (i.e., when the <see cref="Session.LoginCompleted"/> event
         /// is raised) results in an exception.
         /// </para>
         /// <para>The <paramref name="awayMessage"/> is assumed to be encoded as <see cref="Encoding.Unicode"/></para>
@@ -243,13 +302,11 @@ namespace csammisrun.OscarLib
             SNACHeader header1 = new SNACHeader();
             header1.FamilyServiceID = SNAC_LOCATION_FAMILY;
             header1.FamilySubtypeID = LOCATION_PARAMETER_REQUEST;
-            header1.RequestID = Session.GetNextRequestID();
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(parent, header1, new ByteStream()));
 
             SNACHeader header2 = new SNACHeader();
             header2.FamilyServiceID = SNAC_BUDDY_FAMILY;
             header2.FamilySubtypeID = BUDDY_PARAMETER_REQUEST;
-            header2.RequestID = Session.GetNextRequestID();
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(parent, header2, new ByteStream()));
         }
 
@@ -264,8 +321,8 @@ namespace csammisrun.OscarLib
                 SNACHeader sh = new SNACHeader();
                 sh.FamilyServiceID = SNAC_LOCATION_FAMILY;
                 sh.FamilySubtypeID = LOCATION_PARAMETER_USERINFO;
-                sh.Flags = 0x0000;
-                sh.RequestID = Session.GetNextRequestID();
+                
+                
 
                 // Build the capabilities list, TLV type 0x0005
                 byte[] caps = CapabilityProcessor.GetCapabilityArray(parent.ClientCapabilities);
@@ -275,6 +332,69 @@ namespace csammisrun.OscarLib
                 stream.WriteByteArray(caps);
 
                 SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(parent, sh, stream));
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the user's available message
+        /// </summary>
+        /// <remarks>If the session is logged in at the time the property is set, the
+        /// available message is sent to the server immediately. Otherwise, it will be sent once the
+        /// session is logged in.</remarks>
+        public string AvailableMessage
+        {
+            get { return availableMessage; }
+            set
+            {
+                if (availableMessage != value)
+                {
+                    availableMessage = value;
+                    if(parent.LoggedIn)
+                    {
+                        parent.Services.SetAvailableMessage(availableMessage);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the ICQ client flags for the session
+        /// </summary>
+        /// <remarks>If the session is logged in at the time the property is set, the
+        /// new flags are sent to the server immediately. Otherwise, they will be sent once the
+        /// session is logged in.</remarks>
+        public ICQFlags ICQFlags
+        {
+            get { return icqFlags; }
+            set
+            {
+                if (icqFlags != value)
+                {
+                    icqFlags = value;
+                    if(parent.LoggedIn)
+                    {
+                        parent.Services.SetExtendedICQStatus(ICQFlags, ICQStatus);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the user's current ICQ status
+        /// </summary>
+        /// <remarks>If the session is logged in at the time the property is set, the
+        /// new status is sent to the server immediately. Otherwise, it will be sent once the
+        /// session is logged in.</remarks>
+        public ICQStatus ICQStatus
+        {
+            get { return icqStatus; }
+            set
+            {
+                if (icqStatus != value)
+                {
+                    icqStatus = value;
+                    parent.Services.SetExtendedICQStatus(ICQFlags, ICQStatus);
+                }
             }
         }
         #endregion
@@ -423,8 +543,7 @@ namespace csammisrun.OscarLib
             {
                 profileencoding = Marshal.AolMimeToEncoding(tlvs.ReadString(LOCATION_PROFILE_ENCODING, Encoding.ASCII));
                 profile = tlvs.ReadByteArray(LOCATION_PROFILE);
-                awaymessageencoding =
-                    Marshal.AolMimeToEncoding(tlvs.ReadString(LOCATION_AWAYMESSAGE_ENCODING, Encoding.ASCII));
+                awaymessageencoding = Marshal.AolMimeToEncoding(tlvs.ReadString(LOCATION_AWAYMESSAGE_ENCODING, Encoding.ASCII));
                 awaymessage = tlvs.ReadByteArray(LOCATION_AWAYMESSAGE);
                 caps = CapabilityProcessor.ProcessCLSIDList(tlvs.ReadByteArray(LOCATION_CAPABILITIES));
             }
@@ -460,8 +579,6 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_LOCATION_FAMILY;
             sh.FamilySubtypeID = LOCATION_PARAMETER_USERINFO;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())

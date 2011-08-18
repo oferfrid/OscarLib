@@ -13,19 +13,17 @@ using System;
 
 namespace csammisrun.OscarLib.Utility
 {
-
     internal class ProcessQueue
     {
-        private Queue<DataPacket> _processqueue = new Queue<DataPacket>();
-        private Timer _processtimer;
-		private ISession _sess;
+        private readonly Queue<DataPacket> processQueue = new Queue<DataPacket>();
+        private readonly Timer processTimer;
+        private bool hasTimerBeenSet;
+        private readonly Session parent;
 
-		public ProcessQueue(ISession sess)
+        public ProcessQueue(Session sess)
         {
-            _sess = sess;
-            _processtimer = new Timer(
-                new TimerCallback(SendQueue),
-                null, 100, 100);
+            parent = sess;
+            processTimer = new Timer(SendQueue);
         }
 
         /// <summary>
@@ -36,7 +34,11 @@ namespace csammisrun.OscarLib.Utility
         {
             lock (this)
             {
-                _processqueue.Enqueue(dp);
+                processQueue.Enqueue(dp);
+                if (!hasTimerBeenSet)
+                {
+                    SetDispatchTimer();
+                }
             }
         }
 
@@ -44,25 +46,58 @@ namespace csammisrun.OscarLib.Utility
         /// Sends the contents of the dispatch queue
         /// </summary>
         /// <param name="threadstate">Always <c>null</c></param>
-        protected void SendQueue(object threadstate)
+        private void SendQueue(object threadstate)
         {
+            List<DataPacket> dataPackets = null;
+
+            // Dequeue any packets ready to be dispatched locally
             lock (this)
             {
-                while (_processqueue.Count > 0)
+                dataPackets = new List<DataPacket>(processQueue.Count);
+                while (processQueue.Count > 0)
                 {
-                    DataPacket dp = _processqueue.Dequeue();
-                    if (_sess.LoggedIn)
-                    {
-                        ThreadPool.QueueUserWorkItem(new WaitCallback(DoDispatch), dp);
-                    }
-                    else
-                    {
-                        // We have to synchronously process login packets
-                        // because it's a pretty rigorous call-response format
-                        DoDispatch(dp);
-                    }
+                    dataPackets.Add(processQueue.Dequeue());
                 }
             }
+
+            // Dispatch the packets, either synchronously or asynchronously, depending on login status.
+            // If the session hasn't logged in yet, packets are processed synchronously, because
+            // it's a pretty rigorous call-response format.
+            // This is outside a lock so synchronous dispatch doesn't stall things on a lot of processing.
+            foreach(DataPacket dp in dataPackets)
+            {
+                if (parent.LoggedIn)
+                {
+                    ThreadPool.QueueUserWorkItem(DoDispatch, dp);
+                }
+                else
+                {
+                    DoDispatch(dp);
+                }
+            }
+
+            // Allow the timer to be reset, or set the timer here to avoid packets getting
+            // queued up without triggering the timer.
+            lock (this)
+            {
+                if (processQueue.Count > 0)
+                {
+                    SetDispatchTimer();
+                }
+                else
+                {
+                    hasTimerBeenSet = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the dispatch timer for a single event
+        /// </summary>
+        private void SetDispatchTimer()
+        {
+            processTimer.Change(100, Timeout.Infinite);
+            hasTimerBeenSet = true;
         }
 
         /// <summary>
@@ -79,14 +114,14 @@ namespace csammisrun.OscarLib.Utility
 
             try
             {
-                if (!_sess.Dispatcher.DispatchPacket(dp))
+                if (!parent.Dispatcher.DispatchPacket(dp))
                 {
                     SNACFunctions.ProcessSNAC(dp);
                 }
             }
             catch (Exception ex)
             {
-                _sess.OnPacketDispatchException(ex, dp);
+                parent.OnPacketDispatchException(ex, dp);
             }
         }
     }

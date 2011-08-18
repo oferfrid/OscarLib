@@ -89,7 +89,7 @@ namespace csammisrun.OscarLib.Utility
             CopyArray(bytes, buffer, 0, ref index);
         }
 
-		public static DataPacket BuildDataPacket(ISession sess, SNACHeader header, ByteStream data)
+        public static DataPacket BuildDataPacket(Session sess, SNACHeader header, ByteStream data)
         {
             DataPacket dp = new DataPacket(data);
             dp.ParentSession = sess;

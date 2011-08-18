@@ -52,24 +52,99 @@ namespace csammisrun.OscarLib.Utility
     /// </summary>
     public class SNACHeader
     {
+        private static uint snacRequestID = 0;
+        private static object idLocker = new object();
+        /// <summary>
+        /// Gets the next SNAC request ID in the sequence 0 through 2^32 - 1, inclusive
+        /// </summary>
+        /// <returns>The next SNAC request ID</returns>
+        /// <remarks>The request ID sequence wraps around if it is about to overflow</remarks>
+        private static uint GetNextRequestID()
+        {
+            lock (idLocker)
+            {
+                if (snacRequestID == uint.MaxValue) snacRequestID = 0;
+                return snacRequestID++;
+            }
+        }
+
+        private ushort familyServiceID;
+        private ushort familySubtypeID;
+        private ushort flags;
+        private readonly uint requestID;
+
+        /// <summary>
+        /// Initializes a new SNACHeader from a bytestream
+        /// </summary>
+        /// <param name="byteStream"></param>
+        internal SNACHeader(ByteStream byteStream)
+        {
+            FamilyServiceID = byteStream.ReadUshort();
+            FamilySubtypeID = byteStream.ReadUshort();
+            Flags = byteStream.ReadUshort();
+            requestID = byteStream.ReadUint();
+        }
+
+        /// <summary>
+        /// Initializes a new SNACHeader with a unique request ID
+        /// </summary>
+        internal SNACHeader()
+        {
+            requestID = GetNextRequestID();
+        }
+
+        /// <summary>
+        /// Initializes a new SNACHeader with a unique request ID and the specified SNAC IDs
+        /// </summary>
+        internal SNACHeader(ushort familyServiceId, ushort familySubtypeId)
+            : this()
+        {
+            FamilyServiceID = familyServiceId;
+            FamilySubtypeID = familySubtypeId;
+        }
+
+        internal SNACHeader(ushort familyServiceId, ushort familySubtypeId, ushort flag, uint requestId)
+        {
+            FamilyServiceID = familyServiceId;  // Family
+            FamilySubtypeID = familySubtypeId;  // Subtype
+            Flags = flag;                       // Flags
+            requestID = requestId;              // RequestId((short) sequence) + ((short) command)
+        }
+
+
         /// <summary>
         /// Identifies which service group this SNAC belongs to
         /// </summary>
-        public ushort FamilyServiceID;
+        public ushort FamilyServiceID
+        {
+            get { return familyServiceID; }
+            set { familyServiceID = value; }
+        }
 
         /// <summary>
         /// Further divides the service group identified by FamilyServiceID
         /// </summary>
-        public ushort FamilySubtypeID;
+        public ushort FamilySubtypeID
+        {
+            get { return familySubtypeID; }
+            set { familySubtypeID = value; }
+        }
 
         /// <summary>
-        /// General SNAC properties
+        /// Gets or sets the value of the SNAC header flags
         /// </summary>
-        public ushort Flags;
+        public ushort Flags
+        {
+            get { return flags; }
+            set { flags = value; }
+        }
 
         /// <summary>
         /// Used in request-response exchanges, the client sets the RequestID and the server responds with a SNAC having an identical RequestID
         /// </summary>
-        public uint RequestID;
+        public uint RequestID
+        {
+            get { return requestID; }
+        }
     }
 }

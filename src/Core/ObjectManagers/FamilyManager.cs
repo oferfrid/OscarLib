@@ -26,7 +26,7 @@ namespace csammisrun.OscarLib.Utility
     /// also loads the family data from the XML #aim data file.
     /// </para>
     /// </remarks>
-    public class FamilyManager : IEnumerable
+    internal class FamilyManager : IEnumerable
     {
         private Hashtable _delayqueues;
         private Hashtable _families;
@@ -225,8 +225,7 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         /// <param name="sh">The SNAC header of the frame to add</param>
         /// <param name="data">A byte array consisting of the delayed frame</param>
-        /// <returns><c>true</c> if a queue already existed for this family, or
-        /// <c>false</c> if <see cref="SNAC01.RequestNewService"/> should be called
+        /// <returns><c>true</c> if a queue already existed for this family, or <c>false</c> if <see cref="ServiceManager.RequestNewService"/> should be called
         /// </returns>
         public bool AddFrameToDelayQueue(SNACHeader sh, byte[] data)
         {

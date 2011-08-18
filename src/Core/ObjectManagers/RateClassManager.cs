@@ -14,22 +14,20 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// Manages the five SNAC rate classes
     /// </summary>
-    public class RateClassManager
+    internal class RateClassManager
     {
-        private RateClass[] _classes;
-        private Hashtable _lookups;
+        private readonly RateClass[] _classes = new RateClass[5];
+        private readonly Hashtable _lookups = new Hashtable();
 
         /// <summary>
         /// Creates a new RateClassManager
         /// </summary>
-        public RateClassManager()
+        public RateClassManager(Session parent)
         {
             // Initialize RateClass tables
-            _lookups = new Hashtable();
-            _classes = new RateClass[5];
             for (int i = 0; i < 5; i++)
             {
-                _classes[i] = new RateClass();
+                _classes[i] = new RateClass(parent, i + 1);
             }
         }
 

@@ -55,7 +55,7 @@ namespace csammisrun.OscarLib.Utility
             sb.AppendFormat(CultureInfo.CurrentCulture.NumberFormat,
                             "SNAC(0x{0:x4}, 0x0001) received: {1}", dp.SNAC.FamilyServiceID, (ServerErrorCode) errorcode);
 
-            dp.ParentSession.OnWarning((ServerErrorCode) errorcode);
+            dp.ParentSession.OnWarning((ServerErrorCode) errorcode, dp);
         }
 
         #region SNAC enqueuing
@@ -127,91 +127,6 @@ namespace csammisrun.OscarLib.Utility
         {
             switch ((SNACFamily) dp.SNAC.FamilyServiceID)
             {
-                case SNACFamily.AdministrativeService:
-                    {
-                        AdministrativeService sub = (AdministrativeService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case AdministrativeService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case AdministrativeService.AccountConfirmResponse:
-                                break;
-                            case AdministrativeService.AccountDeleteResponse:
-                                break;
-                            case AdministrativeService.AccountInfoChangeResponse:
-                                break;
-                            case AdministrativeService.AccountInfoResponse:
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.AdvertisementsService:
-                    {
-                        AdvertisementsService sub = (AdvertisementsService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case AdvertisementsService.AdResponse:
-                                break;
-                            case AdvertisementsService.ClientServerError:
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.AuthorizationRegistrationService:
-                    {
-                        AuthorizationRegistrationService sub =
-                            (AuthorizationRegistrationService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case AuthorizationRegistrationService.ServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case AuthorizationRegistrationService.MD5AuthkeyResponse: // 0x0002
-                                SNAC17.SendAuthorizationRequest(dp);
-                                break;
-                            case AuthorizationRegistrationService.LoginResponse: // 0x0003
-                                SNAC17.ProcessLoginResponse(dp);
-                                break;
-                            case AuthorizationRegistrationService.NewUINResponse:
-                                break;
-                            case AuthorizationRegistrationService.SecureIDRequest:
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.BroadcastService:
-                    {
-                        BroadcastService sub = (BroadcastService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case BroadcastService.ServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case BroadcastService.BroadcastMessageResponse:
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.BuddyListManagementService:
-                    {
-                        BuddyListManagementService sub = (BuddyListManagementService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case BuddyListManagementService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                        }
-                    }
-                    break;
                 case SNACFamily.DirectoryUserSearch:
                     {
                         DirectorySearch sub = (DirectorySearch) dp.SNAC.FamilySubtypeID;
@@ -225,32 +140,6 @@ namespace csammisrun.OscarLib.Utility
                                 break;
                             case DirectorySearch.InterestsListResponse: // 0x0005
                                 SNAC0F.ProcessInterestList(dp);
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.EmailService:
-                    {
-                        switch (dp.SNAC.FamilySubtypeID)
-                        {
-                            case 0x0007:
-                                SNAC18.ProcessEmailInformation(dp);
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.InvitationService:
-                    {
-                        InvitationService sub = (InvitationService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case InvitationService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case InvitationService.InvitationResponse: // 0x0003
-                                SNAC06.ProcessInvitationConfirmation(dp);
-                                break;
-                            default:
                                 break;
                         }
                     }
@@ -277,22 +166,6 @@ namespace csammisrun.OscarLib.Utility
                         }
                     }
                     break;
-                case SNACFamily.PopupNoticesService:
-                    {
-                        PopupNoticesService sub = (PopupNoticesService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case PopupNoticesService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case PopupNoticesService.DisplayPopupMessage: // 0x0002
-                                SNAC08.ProcessPopupMessage(dp);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
                 case SNACFamily.PrivacyManagementService:
                     {
                         PrivacyManagementService sub = (PrivacyManagementService) dp.SNAC.FamilySubtypeID;
@@ -301,10 +174,13 @@ namespace csammisrun.OscarLib.Utility
                             case PrivacyManagementService.ClientServerError: // 0x0001
                                 SNACFunctions.ProcessErrorNotification(dp);
                                 break;
-                            case PrivacyManagementService.ServiceError:
+                            case PrivacyManagementService.ServiceParametersRequest: // 0x0002
+                                SNAC09.ProcessParametersListRequest(dp);
                                 break;
-                            case PrivacyManagementService.ServiceParametersResponse:
+                            case PrivacyManagementService.ServiceParametersResponse: // 0x0003
                                 SNAC09.ProcessParametersList(dp);
+                                break;
+                            case PrivacyManagementService.ServiceError:
                                 break;
                             default:
                                 break;
@@ -357,56 +233,7 @@ namespace csammisrun.OscarLib.Utility
                         }
                     }
                     break;
-                case SNACFamily.TranslationService:
-                    {
-                        TranslationService sub = (TranslationService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case TranslationService.ClientServerError:
-                                break;
-                            case TranslationService.TranslateResponse:
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.UsageStatsService:
-                    {
-                        UsageStatsService sub = (UsageStatsService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case UsageStatsService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case UsageStatsService.SetMinimumInterval: // 0x0002
-                                SNAC0B.ProcessReportingInterval(dp);
-                                break;
-                            case UsageStatsService.UsageReportAck: // 0x0004
-                                SNAC0B.ProcessReportAcknowledgement(dp);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                case SNACFamily.UserLookupService:
-                    {
-                        UserLookupService sub = (UserLookupService) dp.SNAC.FamilySubtypeID;
-                        switch (sub)
-                        {
-                            case UserLookupService.ClientServerError: // 0x0001
-                                SNACFunctions.ProcessErrorNotification(dp);
-                                break;
-                            case UserLookupService.FindUserByEmailResponse: // 0x0003
-                                SNAC0A.ProcessSearchResults(dp);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
-                default:
+                 default:
                     StringBuilder sb = new StringBuilder();
                     sb.AppendFormat(
                         System.Globalization.CultureInfo.CurrentCulture.NumberFormat,
@@ -416,7 +243,6 @@ namespace csammisrun.OscarLib.Utility
                         dp.SNAC.Flags,
                         dp.SNAC.RequestID);
                     Logging.DumpFLAP(dp.Data.GetBytes(), sb.ToString());
-                    dp.ParentSession.OnWarning(ServerErrorCode.UnknownSNACFamily);
                     break;
             }
         }

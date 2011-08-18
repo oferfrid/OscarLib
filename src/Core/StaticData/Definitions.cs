@@ -309,6 +309,10 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Modifying the specified SSI item requires SecureID authorization
         /// </summary>
-        SSIItemRequiresAuthorization = 0x100D
-    }
+        SSIItemRequiresAuthorization = 0x100D,
+        /// <summary>
+        /// Other Client with your ID makes a Request
+        /// </summary>
+        ExternalClientRequest = 0x100E
+   }
 }

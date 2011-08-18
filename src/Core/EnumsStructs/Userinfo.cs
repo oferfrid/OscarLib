@@ -182,11 +182,11 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// DC type
         /// </summary>
-        public byte DCType;
+        public DCType DCType;
         /// <summary>
         /// DC version
         /// </summary>
-        public ushort DCVersion;
+        public DCProtocol DCVersion;
         /// <summary>
         /// Internal IP
         /// </summary>
@@ -220,6 +220,7 @@ namespace csammisrun.OscarLib
     /// <summary>
     /// Describes an AOL user's class
     /// </summary>
+    [Flags]
     public enum UserClass
     {
         /// <summary>
@@ -260,8 +261,7 @@ namespace csammisrun.OscarLib
     /// Describes a request for user information, one block at a time
     /// </summary>
     /// <remarks>The BasicUserInfoRequest members cannot be ORed together. To request more
-    /// than one type of information at a time, use the <see cref="UserInfoRequest"/> enumeration
-	/// with the <see cref="ISession.RequestUserInfo"/> method</remarks>
+    /// than one type of information at a time, use the <see cref="StatusManager.RequestAllUserInfo"/> method</remarks>
     public enum BasicUserInfoRequest
     {
         /// <summary>
@@ -336,5 +336,72 @@ namespace csammisrun.OscarLib
         /// The <see cref="System.Text.Encoding"/> of the user's profile string
         /// </summary>
         public Encoding ProfileEncoding;
+    }
+
+    /// <summary>
+    /// Direct connection type
+    /// </summary>
+    public enum DCType : byte
+    {
+        /// <summary>
+        /// DC_DISABLED - Direct connection disabled / auth required
+        /// </summary>
+        Disabled = 0x00,
+
+        /// <summary>
+        ///  DC_HTTPS - Direct connection thru firewall or https proxy
+        /// </summary>
+        Https = 0x01,
+
+        /// <summary>
+        /// DC_SOCKS - Direct connection thru socks4/5 proxy server
+        /// </summary>
+        Socks = 0x02,
+
+        /// <summary>
+        /// DC_NORMAL - Normal direct connection (without proxy/firewall)
+        /// </summary>
+        Normal = 0x04,
+
+        /// <summary>
+        /// DC_WEB - Web client - no direct connection
+        /// </summary>
+        Web = 0x06
+    }
+
+    /// <summary>
+    /// Direct connection protocol version
+    /// </summary>
+    public enum DCProtocol : ushort
+    {
+        /// <summary>
+        /// DCP_ICQ98
+        /// </summary>
+        Icq98 = 0x0004,
+
+        /// <summary>
+        /// DCP_ICQ99
+        /// </summary>
+        Icq99 = 0x0006,
+
+        /// <summary>
+        /// DCP_ICQ2000
+        /// </summary>
+        Icq2000 = 0x0007,
+
+        /// <summary>
+        ///  DCP_ICQ2001
+        /// </summary>
+        Icq2001 = 0x0008,
+
+        /// <summary>
+        /// DCP_ICQLITE
+        /// </summary>
+        IcqLite = 0x0009,
+
+        /// <summary>
+        /// DCP_ICQ2003B
+        /// </summary>
+        Icq2003b = 0x000a
     }
 }

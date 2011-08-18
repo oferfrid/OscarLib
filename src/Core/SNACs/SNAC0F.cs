@@ -10,15 +10,15 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Performs a directory search by email address -- SNAC(0F,02)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="email">The email address to search for</param>
-		public static void SearchByEmail(ISession sess, string email)
+        public static void SearchByEmail(Session sess, string email)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.DirectoryUserSearch;
             sh.FamilySubtypeID = (ushort) DirectorySearch.SearchUserRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())
@@ -34,7 +34,7 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Performs a directory search by personal information -- SNAC(0F,02)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="items">The number of non-null search terms</param>
         /// <param name="firstname">A first name</param>
         /// <param name="middlename">A middle name</param>
@@ -50,15 +50,15 @@ namespace csammisrun.OscarLib.Utility
         /// <para>If a search term is to be ignored, it must be set to <c>null</c>.</para>
         /// <para>There must be at least one non-null search term.</para></remarks>
         public static void SearchByInfo(
-			ISession sess, int items,
+            Session sess, int items,
             string firstname, string middlename, string lastname, string maidenname, string nickname,
             string city, string state, string country, string zip, string address)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.DirectoryUserSearch;
             sh.FamilySubtypeID = (ushort) DirectorySearch.SearchUserRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())
@@ -96,15 +96,14 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Performs a directory search by interest -- SNAC(0F,02)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="interest">The interest to search for</param>
-		public static void SearchByInterest(ISession sess, string interest)
+        public static void SearchByInterest(Session sess, string interest)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.DirectoryUserSearch;
             sh.FamilySubtypeID = (ushort) DirectorySearch.SearchUserRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())
@@ -191,14 +190,13 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Requests a list of known interests -- SNAC(0F,04)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void RequestInterestList(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void RequestInterestList(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.DirectoryUserSearch;
             sh.FamilySubtypeID = (ushort) DirectorySearch.InterestsListRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }

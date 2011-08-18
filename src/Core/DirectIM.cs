@@ -233,11 +233,11 @@ namespace csammisrun.OscarLib
         #region Static methods
 
         /// <summary>
-        /// Gets an <see cref="Encoding"/> from an instant message's charset and sub-charset arguments
+        /// Gets an <see cref="Encoding"/> from an instant message's charset and language parameters
         /// </summary>
-        public static Encoding GetEncodingFromCharset(ushort charset, ushort subset)
+        public static Encoding GetEncodingFromCharset(ushort charset, ushort language)
         {
-            // subset is actually ignored at the moment
+            // language is actually ignored at the moment
 
             switch (charset)
             {
@@ -245,6 +245,8 @@ namespace csammisrun.OscarLib
                     return Encoding.ASCII;
                 case 0x0002:
                     return Encoding.BigEndianUnicode;
+                case 0x0003:
+                    goto default; // Should be LATIN-1
                 default:
                     return Encoding.Default;
             }

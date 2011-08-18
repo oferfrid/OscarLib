@@ -111,30 +111,32 @@ namespace csammisrun.OscarLib.Utility
     {
         private string _clientip = "";
         private bool _controlledlistenerstop = false;
-        protected Socket _listener = null;
+        protected StreamSocket _listener = null;
         private string _message = "";
-        private DirectConnectionMethod _method = DirectConnectionMethod.Direct;
+        private DirectConnectionMethod directConnectionMethod;
         private UserInfo _other = new UserInfo();
-        private string _proxyip = "";
-        private readonly DirectConnectRole _role;
+        /// <summary>
+        /// The IP address of the AOL proxy to utilize
+        /// </summary>
+        private string aolProxyIP = "";
+        private readonly DirectConnectRole directConnectRole;
         private RendezvousSequence _sequence = RendezvousSequence.DirectOrStage1;
-        private ushort _subtype = 0;
         private RendezvousType _type = RendezvousType.Invite;
         private string _verifiedip = "";
 
         /// <summary>
         /// Creates a new Direct Connection
         /// </summary>
-		/// <param name="parent">The <see cref="ISession"/> that owns this connection</param>
+        /// <param name="parent">The <see cref="Session"/> that owns this connection</param>
         /// <param name="id">The connection's unique ID</param>
         /// <param name="dcmethod">The method (direct or proxied) that the connection is to use</param>
         /// <param name="role">The role of this connection in a Rendezvous session</param>
-		public DirectConnection(ISession parent, int id,
+        public DirectConnection(Session parent, int id,
                                 DirectConnectionMethod dcmethod, DirectConnectRole role)
             : base(parent, id)
         {
-            _method = dcmethod;
-            _role = role;
+            directConnectionMethod = dcmethod;
+            directConnectRole = role;
 
             // Generate a random ICBM cookie
             Cookie = Cookie.CreateNullTerminatedCookieForSending();
@@ -180,7 +182,7 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         public DirectConnectRole Role
         {
-            get { return _role; }
+            get { return directConnectRole; }
         }
 
         /// <summary>
@@ -204,10 +206,13 @@ namespace csammisrun.OscarLib.Utility
             set { _verifiedip = value; }
         }
 
-        public string ProxyIP
+        /// <summary>
+        /// The IP address of the AOL proxy to utilize
+        /// </summary>
+        public string AOLProxyIP
         {
-            get { return _proxyip; }
-            set { _proxyip = value; }
+            get { return aolProxyIP; }
+            set { aolProxyIP = value; }
         }
 
         public string Message
@@ -221,8 +226,8 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         public DirectConnectionMethod Method
         {
-            get { return _method; }
-            set { _method = value; }
+            get { return directConnectionMethod; }
+            set { directConnectionMethod = value; }
         }
 
         /// <summary>
@@ -234,13 +239,7 @@ namespace csammisrun.OscarLib.Utility
             set { _type = value; }
         }
 
-        public ushort SubType
-        {
-            get { return _subtype; }
-            set { _subtype = value; }
-        }
-
-        public Socket Listener
+        public StreamSocket Listener
         {
             get { return _listener; }
         }
@@ -271,9 +270,9 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Connect to a remote user using Rendezvous
         /// </summary>
-        public override bool ConnectToServer()
+        public override void ConnectToServer()
         {
-            switch (_role)
+            switch (directConnectRole)
             {
                 case DirectConnectRole.Initiator:
                     ConnectAsInitiator();
@@ -282,11 +281,9 @@ namespace csammisrun.OscarLib.Utility
                     AcceptDirectConnectionInvitation();
                     break;
             }
-
-            return true;
         }
 
-        public override void ConnectionTimedOut(object data)
+        protected override void ConnectionTimedOut(object data)
         {
             if (socket != null)
             {
@@ -308,7 +305,7 @@ namespace csammisrun.OscarLib.Utility
             // Start the timeout timer
             StartTimeoutPeriod(30);
 
-            if (_method == DirectConnectionMethod.Proxied)
+            if (directConnectionMethod == DirectConnectionMethod.Proxied)
             {
                 StartReceiveThroughProxy();
             }
@@ -354,7 +351,7 @@ namespace csammisrun.OscarLib.Utility
         private void ProxyInitializeSend()
         {
             Encoding enc = Encoding.ASCII;
-            byte screennamelength = (byte) enc.GetByteCount(parentSession.ScreenName);
+            byte screennamelength = (byte) enc.GetByteCount(parent.ScreenName);
 
             int index = 0, bytessent = 0;
             byte[] data = new byte[12 + 1 + screennamelength + 8 + 4 + 16];
@@ -362,7 +359,7 @@ namespace csammisrun.OscarLib.Utility
             InsertProxyHeader(data, RendezvousProxyCommand.InitializeSend, ref index);
             // Screenname size + string
             data[index++] = screennamelength;
-            Marshal.InsertString(data, parentSession.ScreenName, enc, ref index);
+            Marshal.InsertString(data, parent.ScreenName, enc, ref index);
             // The rendezvous cookie
             Marshal.CopyArray(Cookie.ToByteArray(), data, 0, ref index);
             // TLV 0x0001, length 0x0010
@@ -372,7 +369,7 @@ namespace csammisrun.OscarLib.Utility
 
             while (bytessent < data.Length)
             {
-                bytessent += socket.Send(data, bytessent, data.Length - bytessent, SocketFlags.None);
+                bytessent += socket.Write(data, bytessent, data.Length - bytessent);
             }
             Logging.DumpFLAP(data, "Rendezvous proxy initialize send");
         }
@@ -384,7 +381,7 @@ namespace csammisrun.OscarLib.Utility
         {
             Encoding enc = Encoding.ASCII;
             //byte screennamelength = (byte)enc.GetByteCount(rd.UserInfo.ScreenName);
-            byte screennamelength = (byte) enc.GetByteCount(parentSession.ScreenName);
+            byte screennamelength = (byte) enc.GetByteCount(parent.ScreenName);
 
             int index = 0, bytessent = 0;
             byte[] data = new byte[12 + 1 + screennamelength + 2 + 8 + 20];
@@ -393,7 +390,7 @@ namespace csammisrun.OscarLib.Utility
             // Screenname size + string
             data[index++] = screennamelength;
             //Marshal.InsertString(data, rd.UserInfo.ScreenName, enc, ref index);
-            Marshal.InsertString(data, parentSession.ScreenName, enc, ref index);
+            Marshal.InsertString(data, parent.ScreenName, enc, ref index);
             // The fake (heh) port
             Marshal.InsertUshort(data, (ushort) port, ref index);
             // The rendezvous cookie
@@ -405,7 +402,7 @@ namespace csammisrun.OscarLib.Utility
 
             while (bytessent < data.Length)
             {
-                bytessent += socket.Send(data, bytessent, data.Length - bytessent, SocketFlags.None);
+                bytessent += socket.Write(data, bytessent, data.Length - bytessent);
             }
             Logging.DumpFLAP(data, "Rendezvous proxy initialize receive");
         }
@@ -420,7 +417,7 @@ namespace csammisrun.OscarLib.Utility
             byte[] header = new byte[12];
             while (bytesreceived < header.Length)
             {
-                bytesreceived += socket.Receive(header, bytesreceived, header.Length - bytesreceived, SocketFlags.None);
+                bytesreceived += socket.Read(header, bytesreceived, header.Length - bytesreceived);
             }
             Logging.DumpFLAP(header, "Rendezvous proxy read packet header");
 
@@ -436,7 +433,7 @@ namespace csammisrun.OscarLib.Utility
             while (bytesreceived < retval.Data.Length)
             {
                 bytesreceived +=
-                    socket.Receive(retval.Data, bytesreceived, retval.Data.Length - bytesreceived, SocketFlags.None);
+                    socket.Read(retval.Data, bytesreceived, retval.Data.Length - bytesreceived);
             }
             Logging.DumpFLAP(retval.Data, "Rendezvous proxy read packet data");
             return retval;
@@ -466,7 +463,7 @@ namespace csammisrun.OscarLib.Utility
             try
             {
                 Logging.WriteString("Proxy received READY");
-                socket.EndReceive(res);
+                socket.EndRead(res);
                 OnDirectConnectReady();
             }
             catch (Exception ex)
@@ -481,7 +478,7 @@ namespace csammisrun.OscarLib.Utility
 
         private void ConnectAsInitiator()
         {
-            switch (_method)
+            switch (directConnectionMethod)
             {
                 case DirectConnectionMethod.Direct:
                     ConnectAsInitiatorDirect();
@@ -497,7 +494,7 @@ namespace csammisrun.OscarLib.Utility
             // Start a listening socket and populate the DCI structure with
             // network information
             IPEndPoint ipep = new IPEndPoint(IPAddress.Any, 0);
-            _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _listener = new StreamSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _listener.Bind(ipep);
 
             RendezvousData rd = new RendezvousData();
@@ -506,33 +503,37 @@ namespace csammisrun.OscarLib.Utility
             _listener.BeginAccept(new AsyncCallback(AcceptConnection), rd);
 
             // Send the "send file" request on SNAC(04,06):02
-            parentSession.Messages.RequestDirectConnection(this);
+            parent.Messages.RequestDirectConnectionInvite(this);
         }
 
         private void ConnectAsInitiatorProxied()
         {
-            Server = "ars.oscar.aol.com";
-            Port = parentSession.LoginPort;
+            Server = parent.ServerSettings.IcqProxyServer;
+            Port = parent.ServerSettings.LoginPort;
 
-            parentSession.ProxiedSocketFactory(Server, Port, new ProxiedSocketFactoryResultHandler(InitProxyConnectFinished));
+            ProxySocketConnector connector = new ProxySocketConnector(parent, Server, Port, Ssl);
+            connector.ConnectionFailed += delegate
+            {
+                Logging.WriteString("ConnectAsInitiatorProxied failed to connect to " + parent.ServerSettings.IcqProxyServer);
+                DisconnectFromServer(true);
+            };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                InitAolProxyConnectFinished();
+            };
+            connector.BeginConnect();
         }
 
         /// <summary>
-        /// Completes the initial connection to the proxy server
+        /// Completes the initial connection to the AOL proxy server
         /// </summary>
         /// <remarks>This method is used to complete the proxy server transaction for both
         /// Stage 1 sending and Stage 2 receiver-redirect proxy scenarios</remarks>
-        private void InitProxyConnectFinished(Socket socket, string errormsg)
+        private void InitAolProxyConnectFinished()
         {
             try
             {
-                if (!String.IsNullOrEmpty(errormsg))
-                {
-                    throw new Exception(errormsg);
-                }
-
-                this.socket = socket;
-
                 ProxyInitializeSend();
                 RendezvousProxyPacket rpp = ReadProxyPacket();
                 if (rpp.Command == RendezvousProxyCommand.Acknowledge)
@@ -540,17 +541,17 @@ namespace csammisrun.OscarLib.Utility
                     using (ByteStream bstream = new ByteStream(rpp.Data))
                     {
                         Port = bstream.ReadUshort();
-                        _proxyip = (new IPAddress(bstream.ReadByteArray(4))).ToString();
+                        aolProxyIP = (new IPAddress(bstream.ReadByteArray(4))).ToString();
                     }
 
                     // Send the "send file" request on SNAC(04,06):02
-                    parentSession.Messages.RequestDirectConnection(this);
+                    parent.Messages.RequestDirectConnectionInvite(this);
 
                     // Wait for the proxy to send its 12 byte READY sequence
                     lock (socket)
                     {
-                        socket.BeginReceive(new byte[12], 0, 12, SocketFlags.None, new AsyncCallback(ProxyReceivedReady),
-                                           null);
+                        socket.BeginRead(new byte[12], 0, 12, new AsyncCallback(ProxyReceivedReady), null);
+                        //socket.BeginReceive(new byte[12], 0, 12, SocketFlags.None, new AsyncCallback(ProxyReceivedReady), null);
                     }
                 }
                 else
@@ -579,22 +580,26 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Sends a Rendezvous INITRECV and begins sending the file through the proxy connection
         /// </summary>
-        internal void StartSendThroughStage2Proxy()
+        internal void StartSendThroughStage2AolProxy()
         {
-            parentSession.ProxiedSocketFactory(_proxyip, port,
-                                         new ProxiedSocketFactoryResultHandler(SendThroughStage2ProxyConnectFinished));
+            ProxySocketConnector connector = new ProxySocketConnector(parent, AOLProxyIP, Port, Ssl);
+            connector.ConnectionFailed += delegate
+            {
+                Logging.WriteString("StartSendThroughStage2Proxy couldn't connect to {0}", AOLProxyIP);
+                DisconnectFromServer(true);
+            };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                SendThroughStage2AolProxyConnectFinished();
+            };
+            connector.BeginConnect();
         }
 
-        private void SendThroughStage2ProxyConnectFinished(Socket socket, string errormsg)
+        private void SendThroughStage2AolProxyConnectFinished()
         {
             try
             {
-                if (!String.IsNullOrEmpty(errormsg))
-                {
-                    throw new Exception(errormsg);
-                }
-
-                this.socket = socket;
                 ProxyInitializeReceive();
                 RendezvousProxyPacket rpp = ReadProxyPacket();
                 if (rpp.Command == RendezvousProxyCommand.Ready)
@@ -663,26 +668,22 @@ namespace csammisrun.OscarLib.Utility
         /// <remarks>If the direct connection fails at this stage, control is passed to <see cref="FallbackToStage2Connection"/></remarks>
         private void StartReceiveThroughDirectConnection()
         {
-            parentSession.ProxiedSocketFactory(_verifiedip, port,
-                                         new ProxiedSocketFactoryResultHandler(InitReceiveFileConnectFinished));
-        }
+            // check for intranet
+            string ipaddress = this.VerifiedIP == ParentSession.Connections.LocalExternalIP.ToString() ? this.ClientIP : this.VerifiedIP;
 
-        /// <summary>
-        /// Connection to sender has completed
-        /// </summary>
-        /// <remarks>
-        /// If the socket connection fails at this stage, control is passed to <see cref="FallbackToStage2Connection"/>.
-        /// </remarks>
-        private void InitReceiveFileConnectFinished(Socket socket, string errormsg)
-        {
-            if (!String.IsNullOrEmpty(errormsg))
+            ProxySocketConnector connector = new ProxySocketConnector(parent, ipaddress, Port, Ssl);
+            connector.ConnectionFailed += delegate
             {
+                Logging.WriteString("StartReceiveThroughDirectConnection couldn't connect, falling back to stage 2");
                 FallbackToStage2Connection();
-                return;
-            }
-
-            this.socket = socket;
-            OnDirectConnectReady();
+            };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                parent.Messages.RequestDirectConnectionAccept(this);
+                OnDirectConnectReady();
+            };
+            connector.BeginConnect();
         }
 
         /// <summary>
@@ -690,24 +691,27 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         private void StartReceiveThroughProxy()
         {
-            parentSession.ProxiedSocketFactory(_proxyip, parentSession.LoginPort,
-                                         new ProxiedSocketFactoryResultHandler(InitProxyReceiveConnectFinished));
+            ProxySocketConnector connector = new ProxySocketConnector(parent, AOLProxyIP, parent.ServerSettings.LoginPort, Ssl); // okay...?
+            connector.ConnectionFailed += delegate
+            {
+                Logging.WriteString("StartReceiveThroughProxy failed");
+                OnDirectConnectFailed("Couldn't connect to sender");
+            };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                InitAolProxyReceiveConnectFinished();
+            };
+            connector.BeginConnect();
         }
 
         /// <summary>
         /// Completes the final connection to the proxy server
         /// </summary>
-        private void InitProxyReceiveConnectFinished(Socket socket, string errormsg)
+        private void InitAolProxyReceiveConnectFinished()
         {
-            if (!String.IsNullOrEmpty(errormsg))
-            {
-                OnDirectConnectFailed(errormsg);
-                return;
-            }
-
             try
             {
-                this.socket = socket;
                 ProxyInitializeReceive();
                 RendezvousProxyPacket rpp = ReadProxyPacket();
                 if (rpp.Command == RendezvousProxyCommand.Error)
@@ -727,10 +731,20 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         private void FallbackToStage2Connection()
         {
-            _method = DirectConnectionMethod.Proxied;
+            directConnectionMethod = DirectConnectionMethod.Proxied;
             _sequence = RendezvousSequence.Stage2;
-            parentSession.ProxiedSocketFactory("ars.oscar.aol.com", parentSession.LoginPort,
-                                         new ProxiedSocketFactoryResultHandler(InitProxyConnectFinished));
+            ProxySocketConnector connector = new ProxySocketConnector(parent, parent.ServerSettings.IcqProxyServer, parent.ServerSettings.LoginPort, Ssl);
+            connector.ConnectionFailed += delegate
+            {
+                Logging.WriteString("FallbackToStage2Connection failed");
+                DisconnectFromServer(true);
+            };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                InitAolProxyConnectFinished();
+            };
+            connector.BeginConnect();
         }
 
         #endregion

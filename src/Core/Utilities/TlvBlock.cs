@@ -110,9 +110,9 @@ namespace csammisrun.OscarLib.Utility
         /// Reads a byte from the TLV block
         /// </summary>
         /// <param name="typeCode">The type code of the TLV that contains the data</param>
-        public byte ReadByte(int typeCode)
+        /// <param name="retval">The default value, if typecode not found</param>
+        public byte ReadByte(int typeCode, byte retval = byte.MaxValue)
         {
-            byte retval = 0xFF;
             foreach (Tlv tlv in tlvList)
             {
                 if (tlv.TypeNumber == typeCode)
@@ -128,14 +128,36 @@ namespace csammisrun.OscarLib.Utility
         /// Reads a 16-bit unsigned integer from the TLV block
         /// </summary>
         /// <param name="typeCode">The type code of the TLV that contains the data</param>
-        public ushort ReadUshort(int typeCode)
+        /// <param name="retval">The default value, if typecode not found</param>
+        public ushort ReadUshort(int typeCode, ushort retval = ushort.MaxValue)
         {
-            ushort retval = 0xFFFF;
             foreach (Tlv tlv in tlvList)
             {
                 if (tlv.TypeNumber == typeCode)
                 {
-                    retval = (ushort) ((tlv.Data[0] << 8) | tlv.Data[1]);
+                    byte[] b = (byte[])tlv.Data.Clone();
+                    Array.Reverse(b);
+                    retval = System.BitConverter.ToUInt16(b, 0);
+                    break;
+                }
+            }
+            return retval;
+        }
+
+        /// <summary>
+        /// Reads a 16-bit signed integer from the TLV block
+        /// </summary>
+        /// <param name="typeCode">The type code of the TLV that contains the data</param>
+        /// <param name="retval">The default value, if typecode not found</param>
+        public short ReadSshort(int typeCode, short retval = short.MaxValue)
+        {
+            foreach (Tlv tlv in tlvList)
+            {
+                if (tlv.TypeNumber == typeCode)
+                {
+                    byte[] b = (byte[])tlv.Data.Clone();
+                    Array.Reverse(b);
+                    retval = System.BitConverter.ToInt16(b, 0);
                     break;
                 }
             }
@@ -146,17 +168,59 @@ namespace csammisrun.OscarLib.Utility
         /// Reads a 32-bit unsigned integer from the TLV block
         /// </summary>
         /// <param name="typeCode">The type code of the TLV that contains the data</param>
-        public uint ReadUint(int typeCode)
+        /// <param name="retval">The default value, if typecode not found</param>
+        public uint ReadUint(int typeCode, uint retval = uint.MaxValue)
         {
-            uint retval = 0xFFFFFFFF;
             foreach (Tlv tlv in tlvList)
             {
                 if (tlv.TypeNumber == typeCode)
                 {
-                    retval = (uint)((tlv.Data[0] << 24) |
-                                  (tlv.Data[1] << 16) |
-                                  (tlv.Data[2] << 8) |
-                                  tlv.Data[3]);
+                    byte[] b = (byte[])tlv.Data.Clone();
+                    Array.Reverse(b);
+                    retval = System.BitConverter.ToUInt32(b, 0);
+                    break;
+                }
+            }
+            return retval;
+        }
+
+        /// <summary>
+        /// Reads a double from the TLV block
+        /// </summary>
+        /// <param name="typeCode">The type code of the TLV that contains the data</param>
+        /// <param name="retval">The default value, if typecode not found</param>
+        public double ReadDouble(int typeCode, double retval = double.MaxValue)
+        {
+            foreach (Tlv tlv in tlvList)
+            {
+                if (tlv.TypeNumber == typeCode)
+                {
+                    byte[] b = (byte[])tlv.Data.Clone();
+                    Array.Reverse(b);
+                    retval = System.BitConverter.ToDouble(b, 0);
+                    break;
+               }
+            }
+            return retval;
+        }
+
+        /// <summary>
+        /// Reads a Number from TLV block, depends on tlv size, byte/ushort/uint
+        /// </summary>
+        /// <param name="typeCode">The type code of the TLV that contains the data</param>
+        /// <param name="retval">The default value, if typecode not found</param>
+        public uint ReadNumber(int typeCode, uint retval = uint.MaxValue)
+        {
+            foreach (Tlv tlv in tlvList)
+            {
+                if (tlv.TypeNumber == typeCode)
+                {
+                    switch (tlv.DataSize)
+                    {
+                        case 1: retval = ReadByte(typeCode); break;
+                        case 2: retval = ReadUshort(typeCode); break;
+                        case 4: retval = ReadUint(typeCode); break;
+                    }
                     break;
                 }
             }
@@ -169,13 +233,13 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="typeCode">The type code of the TLV that contains the data</param>
         public string ReadIPAddress(int typeCode)
         {
-            String retval = "";
+            String retval = String.Empty;
             foreach (Tlv tlv in tlvList)
             {
                 if (tlv.TypeNumber == typeCode)
                 {
-                    retval = String.Format("{0}.{1}.{2}.{3}",
-                                           tlv.Data[0], tlv.Data[1], tlv.Data[2], tlv.Data[3]);
+                    retval = String.Format("{0}.{1}.{2}.{3}", tlv.Data[0], tlv.Data[1], tlv.Data[2], tlv.Data[3]);
+                    break;
                 }
             }
             return retval;
@@ -188,12 +252,13 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="stringEncoding">The <see cref="Encoding"/> of the string contained in the TLV</param>
         public String ReadString(int typeCode, Encoding stringEncoding)
         {
-            String retval = "";
+            String retval = String.Empty;
             foreach (Tlv tlv in tlvList)
             {
                 if (tlv.TypeNumber == typeCode)
                 {
-                    retval = stringEncoding.GetString(tlv.Data, 0, tlv.Data.Length);
+                    retval = stringEncoding.GetString(tlv.Data, 0, tlv.Data.Length).Trim(new char[] { ' ', '\0', '\r', '\n' });
+                    break;
                 }
             }
             return retval;
@@ -320,9 +385,24 @@ namespace csammisrun.OscarLib.Utility
         {
             CheckAccess();
 
-            byte[] byteArray = new byte[2];
-            byteArray[0] = (byte) ((data & 0xFF00) >> 8);
-            byteArray[1] = (byte) (data & 0x00FF);
+            byte[] byteArray = System.BitConverter.GetBytes(data);
+            Array.Reverse(byteArray);
+
+            tlvList.Add(TLVMarshal.MakeTLV(typeCode, byteArray));
+            tlvBlockSize += 2;
+        }
+
+        /// <summary>
+        /// Writes a 16-bit signed integer TLV into the block
+        /// </summary>
+        /// <param name="typeCode">The type code of the TLV to contain the data</param>
+        /// <param name="data">The data to write</param>
+        public void WriteSshort(int typeCode, short data)
+        {
+            CheckAccess();
+
+            byte[] byteArray = System.BitConverter.GetBytes(data);
+            Array.Reverse(byteArray);
 
             tlvList.Add(TLVMarshal.MakeTLV(typeCode, byteArray));
             tlvBlockSize += 2;
@@ -354,6 +434,21 @@ namespace csammisrun.OscarLib.Utility
             byteArray[3] = (byte) ((data & 0x000000FF));
             tlvList.Add(TLVMarshal.MakeTLV(typeCode, byteArray));
             tlvBlockSize += 4;
+        }
+
+        /// <summary>
+        /// Writes a Double Value into the block
+        /// </summary>
+        /// <param name="typeCode">The type code of the TLV to contain the data</param>
+        /// <param name="data">The data to write</param>
+        public void WriteDouble(int typeCode, double data)
+        {
+            CheckAccess();
+            byte[] byteArray = System.BitConverter.GetBytes(data);
+            Array.Reverse(byteArray);
+
+            tlvList.Add(TLVMarshal.MakeTLV(typeCode, byteArray));
+            tlvBlockSize += 8;
         }
 
         /// <summary>

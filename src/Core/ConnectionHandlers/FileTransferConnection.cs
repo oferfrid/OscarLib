@@ -28,11 +28,12 @@ namespace csammisrun.OscarLib.Utility
         private int _totalfiles = 1;
         private int _totalparts = 0;
         private uint _totalsize = 0;
+        private ushort _subtype = 0;
 
         /// <summary>
         /// Initializes a new FileTransferConnection
         /// </summary>
-		public FileTransferConnection(ISession parent, int id, DirectConnectionMethod dcmethod, DirectConnectRole role)
+        public FileTransferConnection(Session parent, int id, DirectConnectionMethod dcmethod, DirectConnectRole role)
             : base(parent, id, dcmethod, role)
         {
             Logging.WriteString("Creating new FTC (id " + id.ToString() + ")");
@@ -73,7 +74,7 @@ namespace csammisrun.OscarLib.Utility
             }
 
             // Signal the parent session that we've started transfering a file
-            parentSession.OnFileTransferProgress(Cookie, 0, FileHeader.Size);
+            parent.OnFileTransferProgress(Cookie, 0, FileHeader.Size);
 
             // Send the first chunk
             SendFileTransmitterSendChunk();
@@ -96,7 +97,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 while (index < buffer.Length)
                 {
-                    index += socket.Send(buffer, index, buffer.Length - index, SocketFlags.None);
+                    index += socket.Write(buffer, index, buffer.Length - index);
                 }
             }
             catch (Exception ex)
@@ -112,7 +113,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 while (index < buffer.Length)
                 {
-                    index += socket.Receive(buffer, index, buffer.Length - index, SocketFlags.None);
+                    index += socket.Read(buffer, index, buffer.Length - index);
                 }
             }
             catch (Exception ex)
@@ -145,8 +146,8 @@ namespace csammisrun.OscarLib.Utility
                 bytesreadfromfile = _datastream.Read(_datachunk, 0, _datachunk.Length);
 
                 // Begin to send it over the wire
-                socket.BeginSend(_datachunk, 0, bytesreadfromfile, SocketFlags.None,
-                                new AsyncCallback(SendFileTransmitterSendEnd), null);
+                socket.BeginWrite(_datachunk, 0, bytesreadfromfile, new AsyncCallback(SendFileTransmitterSendEnd), null);
+                //socket.BeginSend(_datachunk, 0, bytesreadfromfile, SocketFlags.None, new AsyncCallback(SendFileTransmitterSendEnd), null);
             }
             catch (Exception ex)
             {
@@ -163,7 +164,7 @@ namespace csammisrun.OscarLib.Utility
             int bytessent = 0;
             try
             {
-                bytessent = socket.EndSend(res);
+                bytessent = socket.EndWrite(res);
             }
             catch (Exception ex)
             {
@@ -174,7 +175,7 @@ namespace csammisrun.OscarLib.Utility
             _streamposition += (uint) bytessent;
 
             // Signal parent session of the progress
-            parentSession.OnFileTransferProgress(Cookie, _streamposition, FileHeader.Size);
+            parent.OnFileTransferProgress(Cookie, _streamposition, FileHeader.Size);
 
             // If all the file has been sent, wait for the acknowledgement message
             // and close up shop. Otherwise, send another chunk
@@ -183,7 +184,7 @@ namespace csammisrun.OscarLib.Utility
                 byte[] receivedone = new byte[256];
                 try
                 {
-                    socket.Receive(receivedone);
+                    socket.Read(receivedone);
                 }
                 catch (Exception ex)
                 {
@@ -222,8 +223,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 while (index < filetransferheader.Length)
                 {
-                    index +=
-                        socket.Receive(filetransferheader, index, filetransferheader.Length - index, SocketFlags.None);
+                    index += socket.Read(filetransferheader, index, filetransferheader.Length - index);
                 }
             }
             catch (Exception ex)
@@ -253,7 +253,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 while (index < filetransferheader.Length)
                 {
-                    index += socket.Send(filetransferheader, index, filetransferheader.Length - index, SocketFlags.None);
+                    index += socket.Write(filetransferheader, index, filetransferheader.Length - index);
                 }
             }
             catch (Exception ex)
@@ -278,11 +278,11 @@ namespace csammisrun.OscarLib.Utility
             Logging.WriteString("File opened for writing");
 
             // Signal the parent session that the file transfer has started
-            parentSession.OnFileTransferProgress(Cookie, 0, FileHeader.Size);
+            parent.OnFileTransferProgress(Cookie, 0, FileHeader.Size);
 
             // Start receiving data
-            socket.BeginReceive(_datachunk, 0, _datachunk.Length, SocketFlags.None,
-                               new AsyncCallback(SendFileTransferReceive), null);
+            socket.BeginRead(_datachunk, 0, _datachunk.Length, new AsyncCallback(SendFileTransferReceive), null);
+            //socket.BeginReceive(_datachunk, 0, _datachunk.Length, SocketFlags.None, new AsyncCallback(SendFileTransferReceive), null);
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace csammisrun.OscarLib.Utility
             // End the async receive operation
             try
             {
-                bytesread = socket.EndReceive(res);
+                bytesread = socket.EndRead(res);
                 if (bytesread == 0)
                     throw new Exception("Remote client cancelled transfer");
             }
@@ -324,7 +324,7 @@ namespace csammisrun.OscarLib.Utility
             FileHeader.ReceivedChecksum = ChecksumChunk(_datachunk, (uint) bytesread, FileHeader.ReceivedChecksum);
 
             // Signal progress to the parent session
-            parentSession.OnFileTransferProgress(Cookie, _streamposition, FileHeader.Size);
+            parent.OnFileTransferProgress(Cookie, _streamposition, FileHeader.Size);
 
             // Check to see if the transfer has finished
             if (_streamposition >= FileHeader.Size)
@@ -335,7 +335,7 @@ namespace csammisrun.OscarLib.Utility
                 // Send out the acknowledgement, compare the checksums, and finish up
                 SendFileReceiverDone();
 
-                if (FileHeader.ReceivedChecksum != FileHeader.Checksum)
+                if ( (FileHeader.ReceivedChecksum != FileHeader.Checksum && FileHeader.Checksum > 0) || (_streamposition != FileHeader.Size && FileHeader.Checksum == 0) )
                 {
                     CancelFileTransfer("Received data does not match expected checksum");
                     return;
@@ -346,8 +346,8 @@ namespace csammisrun.OscarLib.Utility
             else
             {
                 // Keep receiving asynchronously
-                socket.BeginReceive(_datachunk, 0, _datachunk.Length,
-                                   SocketFlags.None, new AsyncCallback(SendFileTransferReceive), null);
+                socket.BeginRead(_datachunk, 0, _datachunk.Length, new AsyncCallback(SendFileTransferReceive), null);
+                //ocket.BeginReceive(_datachunk, 0, _datachunk.Length, SocketFlags.None, new AsyncCallback(SendFileTransferReceive), null);
             }
         }
 
@@ -363,7 +363,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 while (index < buffer.Length)
                 {
-                    index += socket.Send(buffer, index, buffer.Length - index, SocketFlags.None);
+                    index += socket.Write(buffer, index, buffer.Length - index);
                 }
             }
             catch (Exception ex)
@@ -437,11 +437,11 @@ namespace csammisrun.OscarLib.Utility
 
             if (error)
             {
-                parentSession.OnFileTransferCancelled(Other, Cookie, message);
-                parentSession.Messages.SendDirectConnectionCancellation(this, message);
+                parent.OnFileTransferCancelled(Other, Cookie, message);
+                parent.Messages.SendDirectConnectionCancellation(this, message);
             }
             else
-                parentSession.OnFileTransferCompleted(Cookie);
+                parent.OnFileTransferCompleted(Cookie);
 
             // Remove connection from ConnManager
         }
@@ -474,12 +474,17 @@ namespace csammisrun.OscarLib.Utility
 
         private void FileTransferConnection_DirectConnectionFailed(string reason)
         {
-            parentSession.OnFileTransferCancelled(Other, cookie, reason);
+            parent.OnFileTransferCancelled(Other, Cookie, reason);
         }
 
         #endregion
 
         #region Properties
+        public ushort SubType
+        {
+            get { return _subtype; }
+            set { _subtype = value; }
+        }
 
         /// <summary>
         /// Gets or sets the path to the local file to send or receive

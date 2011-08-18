@@ -64,7 +64,7 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// Describes a stateful Rendezvous connection used to transmit text messages and images
     /// </summary>
-    public class DirectIMConnection : DirectConnection
+    internal class DirectIMConnection : DirectConnection
     {
         private Queue<DirectIM> _messagequeue = new Queue<DirectIM>();
         private Timer _messagetimer = null;
@@ -72,7 +72,7 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Initializes a new DirectIMConnection
         /// </summary>
-		public DirectIMConnection(ISession parent, int id, DirectConnectionMethod method, DirectConnectRole role)
+        public DirectIMConnection(Session parent, int id, DirectConnectionMethod method, DirectConnectRole role)
             : base(parent, id, method, role)
         {
             _messagetimer = new Timer(new TimerCallback(MessageSendCallback), null, Timeout.Infinite, Timeout.Infinite);
@@ -85,13 +85,13 @@ namespace csammisrun.OscarLib.Utility
         private void DirectIMConnection_DirectConnectionReady()
         {
             SendConfirmationPacket();
-            parentSession.OnDirectConnectionComplete(Other, Cookie);
+            parent.OnDirectConnectionComplete(Other, Cookie);
         }
 
         private void DirectIMConnection_DirectConnectionFailed(string reason)
         {
             _messagetimer.Change(Timeout.Infinite, Timeout.Infinite);
-            parentSession.OnDirectIMSessionCancelled(this, reason);
+            parent.OnDirectIMSessionCancelled(this, reason);
         }
 
         #endregion
@@ -104,8 +104,8 @@ namespace csammisrun.OscarLib.Utility
             try
             {
                 byte[] odcheader = new byte[6];
-                socket.BeginReceive(odcheader, 0, odcheader.Length, SocketFlags.None, new AsyncCallback(EndReadHeader),
-                                   odcheader);
+                socket.BeginRead(odcheader, 0, odcheader.Length, new AsyncCallback(EndReadHeader), odcheader);
+                //socket.BeginReceive(odcheader, 0, odcheader.Length, SocketFlags.None, new AsyncCallback(EndReadHeader), odcheader);
             }
             catch (Exception ex)
             {
@@ -201,7 +201,7 @@ namespace csammisrun.OscarLib.Utility
             try
             {
                 odcheader = (byte[])res.AsyncState;
-                socket.EndReceive(res);
+                socket.EndRead(res);
             }
             catch (Exception ex)
             {
@@ -278,7 +278,7 @@ namespace csammisrun.OscarLib.Utility
                 DirectIMDataReader reader = new DirectIMDataReader(this, dim);
                 reader.DataReaderComplete += new DataReaderCompleteHandler(delegate
                                                                                {
-                                                                                   parentSession.OnDirectIMReceived(
+                                                                                   parent.OnDirectIMReceived(
                                                                                        reader.Message);
                                                                                    reader.Dispose();
                                                                                    ReadHeader();
@@ -498,7 +498,7 @@ namespace csammisrun.OscarLib.Utility
 
         private void EndWrite(IAsyncResult res)
         {
-            int sentsize = _conn.DataSocket.EndSend(res);
+            int sentsize = _conn.DataSocket.EndWrite(res);
             _offset += sentsize;
 
             // Alert the parent session of progress

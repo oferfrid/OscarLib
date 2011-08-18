@@ -7,8 +7,6 @@
  * 
  */
 
-//#define DEBUG
-
 namespace csammisrun.OscarLib.Utility
 {
     /// <summary>

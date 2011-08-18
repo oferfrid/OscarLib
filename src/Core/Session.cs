@@ -20,7 +20,7 @@ namespace csammisrun.OscarLib
     #region Logged in / out exceptions
 
     /// <summary>
-	/// Thrown when an operation is requested that requires the <see cref="ISession"/>
+    /// Thrown when an operation is requested that requires the <see cref="Session"/>
     /// to be logged in
     /// </summary>
     public class NotLoggedInException : Exception
@@ -34,7 +34,7 @@ namespace csammisrun.OscarLib
     }
 
     /// <summary>
-	/// Thrown when an operation is requested that requires the <see cref="ISession"/>
+    /// Thrown when an operation is requested that requires the <see cref="Session"/>
     /// to be logged out
     /// </summary>
     public class LoggedInException : Exception
@@ -69,11 +69,11 @@ namespace csammisrun.OscarLib
 
     #endregion
 
-	/// <summary>
+    /// <summary>
     /// The representation of an AOL Instant Messenger or ICQ session
     /// </summary>
-    public class Session : ISession
-	{
+    public class Session
+    {
         private readonly ConnectionManager connectionManager;
         private readonly ServiceManager serviceManager;
         private readonly SSIManager ssiManager;
@@ -82,29 +82,27 @@ namespace csammisrun.OscarLib
         private readonly StatusManager statusManager;
         private readonly ChatRoomManager chatRoomManager;
         private readonly GraphicsManager graphicsManager;
+        private readonly AuthorizationManager authManager;
+        private readonly SearchManager searchManager;
+        private readonly RateClassManager rateManager;
+        private readonly UsageStatsManager statsManager;
         private readonly PacketDispatcher dispatcher = new PacketDispatcher();
         private readonly FamilyManager familyManager = new FamilyManager();
-        private readonly RateClassManager rateManager = new RateClassManager();
         private readonly LimitManager limitManager = new LimitManager();
 
-        private static uint snacRequestID;
-
-        private ushort _loginport = 5190;
         private string _screenname;
         private string _password;
-        private System.Collections.Hashtable _requestidstorage = new System.Collections.Hashtable();
+        private readonly System.Collections.Hashtable _requestidstorage = new System.Collections.Hashtable();
         private bool _loggedin = false;
         private Capabilities _caps = Capabilities.OscarLib;
         private PrivacySetting _privacy;
-        private OSCARIdentification _clientid = new OSCARIdentification();
+        private readonly OSCARIdentification _clientid = new OSCARIdentification();
+        private readonly ServerInfo _serverSettings = new ServerInfo();
 
-        private string availableMessage = "";
         private string _scratchpath;
 
         private ushort _parametercount;
         private bool _publicidletime;
-
-        private static Session _ref;
 
         private DateTime lastModificationDate;
 
@@ -127,7 +125,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Raises the <see cref="PacketDispatchException"/> event
         /// </summary>
-        public void OnPacketDispatchException(Exception ex, DataPacket packet)
+        protected internal void OnPacketDispatchException(Exception ex, DataPacket packet)
         {
             if (PacketDispatchException != null)
             {
@@ -144,7 +142,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="StatusUpdate"/> event
         /// </summary>
         /// <param name="message">A status message</param>
-        public void OnStatusUpdate(string message)
+        protected internal void OnStatusUpdate(string message)
         {
             if (this.StatusUpdate != null)
                 this.StatusUpdate(this, message);
@@ -160,7 +158,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="message">A status message</param>
         /// <param name="percentdone">The percentage of the login progress that has been completed</param>
-        public void OnLoginStatusUpdate(string message, double percentdone)
+        protected internal void OnLoginStatusUpdate(string message, double percentdone)
         {
             if (this.LoginStatusUpdate != null)
             {
@@ -177,7 +175,8 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="WarningMessage"/> event
         /// </summary>
         /// <param name="errorcode">A <see cref="ServerErrorCode"/> describing the warning</param>
-        public void OnWarning(ServerErrorCode errorcode)
+        /// <param name="dp">The Datapacket of the transfer with the error</param>
+        protected internal void OnWarning(ServerErrorCode errorcode, DataPacket dp)
         {
             // csammis:  Losing a secondary connection (chat room, icon downloader)
             // isn't cause for logging off the session...and setting LoggedIn to false
@@ -185,7 +184,12 @@ namespace csammisrun.OscarLib
 
             //if (errorcode == ServerErrorCode.LostSecondaryConnection)
             //    this.LoggedIn = false;
-            
+
+            if(dp != null)
+            {
+                Logging.WriteString("OnWarning: {0}, RequestId: {1}", errorcode.ToString(), dp.SNAC.RequestID);
+            }
+
             if (this.WarningMessage != null)
             {
                 this.WarningMessage(this, errorcode);
@@ -201,10 +205,15 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="ErrorMessage"/> event or the <see cref="LoginFailed"/> event
         /// </summary>
         /// <param name="errorcode">A <see cref="ServerErrorCode"/> describing the error</param>
+        /// <param name="dp">The Datapacket of the transfer with the error</param>
         /// <remarks>If the login process has not completed, <see cref="LoginFailed"/> is raised.
         /// Otherwise, <see cref="ErrorMessage"/> is raised.</remarks>
-        public void OnError(ServerErrorCode errorcode)
+        protected internal void OnError(ServerErrorCode errorcode, DataPacket dp)
         {
+            if (dp != null) {
+                Logging.WriteString("OnError: {0}, RequestId: {1}", errorcode.ToString(), dp.SNAC.RequestID);
+            }
+
             if (!_loggedin)
             {
                 if (this.LoginFailed != null)
@@ -237,11 +246,13 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Raises the <see cref="LoginCompleted"/> event
         /// </summary>
-        public void OnLoginComplete()
+        protected internal void OnLoginComplete()
         {
             LoggedIn = true;
-            if (this.LoginCompleted != null)
-                this.LoginCompleted(this);
+            if (LoginCompleted != null)
+            {
+                LoginCompleted(this);
+            }
         }
 
         /// <summary>
@@ -256,7 +267,7 @@ namespace csammisrun.OscarLib
         /// <param name="anonymous"><c>true</c> if this warning was sent anonymously, <c>false</c> otherwise</param>
         /// <param name="ui">A <see cref="UserInfo"/> structure describing the warning user. If <paramref name="anonymous"/> is
         /// <c>true</c>, this structure is unpopulated</param>
-        public void OnWarningReceived(ushort newlevel, bool anonymous, UserInfo ui)
+        protected internal void OnWarningReceived(ushort newlevel, bool anonymous, UserInfo ui)
         {
             if (this.WarningReceived != null)
                 this.WarningReceived(this, newlevel, anonymous, ui);
@@ -274,7 +285,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="DirectoryUpdateAcknowledged"/> event
         /// </summary>
         /// <param name="success"><c>true</c> if the directory update succeded, and <c>false</c> otherwise</param>
-        public void OnDirectoryUpdateAcknowledged(bool success)
+        protected internal void OnDirectoryUpdateAcknowledged(bool success)
         {
             if (this.DirectoryUpdateAcknowledged != null)
                 this.DirectoryUpdateAcknowledged(this, success);
@@ -298,7 +309,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="FileTransferRequestReceived"/> event
         /// </summary>
         /// <param name="key">The unique key needed to respond to this request</param>
-        public void OnDirectConnectionRequestReceived(Cookie key)
+        protected internal void OnDirectConnectionRequestReceived(Cookie key)
         {
             DirectConnection conn = Connections.GetDirectConnectionByCookie(key);
 
@@ -333,7 +344,7 @@ namespace csammisrun.OscarLib
         /// <param name="encoding">The text encoding used in the chatroom</param>
         /// <param name="language">The language used in the chatroom</param>
         /// <param name="key">The unique key needed to respond to this request</param>
-        public void OnChatInvitationReceived(UserInfo sender,
+        protected internal void OnChatInvitationReceived(UserInfo sender,
                                                          string roomname,
                                                          string message,
                                                          Encoding encoding,
@@ -342,68 +353,6 @@ namespace csammisrun.OscarLib
         {
             if (this.ChatInvitationReceived != null)
                 this.ChatInvitationReceived(this, sender, roomname, message, encoding, language, key);
-        }
-
-        #endregion
-
-        #region SNAC08 events
-
-        /// <summary>
-        /// Occurs when the server sends a popup message
-        /// </summary>
-        public event PopupMessageHandler PopupMessage;
-
-        /// <summary>
-        /// Raises the <see cref="PopupMessage"/> event
-        /// </summary>
-        /// <param name="width">The width of the popup box, in pixels</param>
-        /// <param name="height">The height of the popup box, in pixels</param>
-        /// <param name="delay">The autohide delay of the popup box, in seconds</param>
-        /// <param name="url">The URL associated with the message</param>
-        /// <param name="message">The message to display</param>
-        public void OnPopupMessage(int width, int height, int delay, string url, string message)
-        {
-            if (this.PopupMessage != null)
-                this.PopupMessage(this, width, height, delay, url, message);
-        }
-
-        #endregion
-
-        #region SNAC0A events
-
-        /// <summary>
-        /// Occurs when results from a user search are available
-        /// </summary>
-        public event SearchByEmailResultsHandler SearchByEmailResults;
-
-        /// <summary>
-        /// Raises the <see cref="SearchByEmailResults"/> event
-        /// </summary>
-        /// <param name="email">The email address that was searched for</param>
-        /// <param name="results">The screennames that are associated with the email address</param>
-        public void OnSearchByEmailResults(string email, string[] results)
-        {
-            if (this.SearchByEmailResults != null)
-                this.SearchByEmailResults(this, email, results);
-        }
-
-        #endregion
-
-        #region SNAC0B events
-
-        /// <summary>
-        /// Occurs when the server sends the minimum status reporting interval at login
-        /// </summary>
-        public event ReportingIntervalReceivedHandler ReportingIntervalReceived;
-
-        /// <summary>
-        /// Raises the <see cref="ReportingIntervalReceived"/> event
-        /// </summary>
-        /// <param name="hours">The minimum status reporting interval, in hours</param>
-        public void OnReportingIntervalReceived(int hours)
-        {
-            if (this.ReportingIntervalReceived != null)
-                this.ReportingIntervalReceived(this, hours);
         }
 
         #endregion
@@ -419,7 +368,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="SearchResults"/> event
         /// </summary>
         /// <param name="results">The results of the directory search</param>
-        public void OnSearchResults(DirectoryEntry[] results)
+        protected internal void OnSearchResults(DirectoryEntry[] results)
         {
             if (this.SearchResults != null)
                 this.SearchResults(this, results);
@@ -434,7 +383,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="InterestsReceived"/> event
         /// </summary>
         /// <param name="results">The results of the interests request</param>
-        public void OnInterestsReceived(InterestItem[] results)
+        protected internal void OnInterestsReceived(InterestItem[] results)
         {
             if (this.InterestsReceived != null)
                 this.InterestsReceived(this, results);
@@ -455,13 +404,24 @@ namespace csammisrun.OscarLib
         /// 
         /// Implementing clients should call <see cref="ActivateBuddyList"/> in response to this event
         /// </summary>
-        public void OnContactListFinished(DateTime lastModificationDate)
+        protected internal void OnContactListFinished(DateTime lastModificationDate)
         {
             if (this.ContactListFinished != null)
             {
                 this.LastModificationDate = lastModificationDate;
                 this.ContactListFinished(this, lastModificationDate);
             }
+        }
+
+        /// <summary>
+        /// Raised when a remote ICQ user adds the locally logged in UIN to their list
+        /// </summary>
+        public event AddedToRemoteListEventHandler AddedToRemoteList;
+
+        protected internal void OnAddedToRemoteList(string uin)
+        {
+            if (AddedToRemoteList != null)
+                AddedToRemoteList(this, new AddedToRemoteListEventArgs(uin));
         }
 
         /// <summary>
@@ -473,7 +433,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="BuddyItemReceived"/> event
         /// </summary>
         /// <param name="buddy">An <see cref="SSIBuddy"/> object</param>
-        public void OnBuddyItemReceived(SSIBuddy buddy)
+        protected internal void OnBuddyItemReceived(SSIBuddy buddy)
         {
             if (this.BuddyItemReceived != null)
                 this.BuddyItemReceived(this, buddy);
@@ -488,7 +448,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="BuddyItemRemoved"/> event
         /// </summary>
         /// <param name="buddy">An <see cref="SSIBuddy"/> object</param>
-        public void OnBuddyItemRemoved(SSIBuddy buddy)
+        protected internal void OnBuddyItemRemoved(SSIBuddy buddy)
         {
             if (this.BuddyItemRemoved != null)
             {
@@ -505,7 +465,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="GroupItemReceived"/> event
         /// </summary>
         /// <param name="group">An <see cref="SSIGroup"/>"/> object</param>
-        public void OnGroupItemReceived(SSIGroup group)
+        protected internal void OnGroupItemReceived(SSIGroup group)
         {
             if (this.GroupItemReceived != null)
                 this.GroupItemReceived(this, group);
@@ -520,7 +480,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="GroupItemRemoved"/> event
         /// </summary>
         /// <param name="group">An <see cref="SSIGroup"/> object</param>
-        public void OnGroupItemRemoved(SSIGroup group)
+        protected internal void OnGroupItemRemoved(SSIGroup group)
         {
             if (this.GroupItemRemoved != null)
             {
@@ -537,7 +497,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="MasterGroupItemReceived"/> event
         /// </summary>
         /// <param name="numgroups">The number of groups we are going to receive</param>
-        public void OnMasterGroupItemReceived(int numgroups)
+        protected internal void OnMasterGroupItemReceived(int numgroups)
         {
             if (this.MasterGroupItemReceived != null)
                 this.MasterGroupItemReceived(this, numgroups);
@@ -551,7 +511,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Raises the <see cref="SSIEditComplete"/> event
         /// </summary>
-        public void OnSSIEditComplete()
+        protected internal void OnSSIEditComplete()
         {
             if (this.SSIEditComplete != null)
             {
@@ -569,7 +529,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="screenname">the screenname that ask for authorization</param>
         /// <param name="reason">the reason message</param>
-        public void OnAuthorizationRequestReceived(string screenname, string reason)
+        protected internal void OnAuthorizationRequestReceived(string screenname, string reason)
         {
             if (this.AuthorizationRequestReceived != null)
                 this.AuthorizationRequestReceived(this, screenname, reason);
@@ -587,7 +547,7 @@ namespace csammisrun.OscarLib
         /// <param name="screenname">the screenname that should get the response</param>
         /// <param name="authorizationGranted">Determines, if the authorization will be granted or not.</param>
         /// <param name="reason">The reason message</param>
-        public void OnAuthorizationResponseReceived(string screenname, bool authorizationGranted,
+        protected internal void OnAuthorizationResponseReceived(string screenname, bool authorizationGranted,
                                                                 string reason)
         {
             if (this.AuthorizationResponseReceived != null)
@@ -604,15 +564,16 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="screenname">the screenname that should get the future authorization</param>
         /// <param name="reason">The reason message</param>
-        public void OnAuthorizationResponseReceived(string screenname, string reason)
+        protected internal void OnFutureAuthorizationReceived(string screenname, string reason)
         {
+            //KSD-SYSTEMS - changed at 24.02.2010 -> from OnAuthorizationResponseReceived to current Methode-Name
             if (this.FutureAuthorizationReceived != null)
                 this.FutureAuthorizationReceived(this, screenname, reason);
         }
 
         #endregion
 
-        #region SNAC17 events
+        #region Authorization manager events
 
         /// <summary>
         /// Occurs when the login sequence fails
@@ -623,12 +584,12 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="LoginFailed"/> event
         /// </summary>
         /// <param name="errorcode">A <see cref="LoginErrorCode"/> describing the failure</param>
-        public void OnLoginFailed(LoginErrorCode errorcode)
+        protected internal void OnLoginFailed(LoginErrorCode errorcode)
         {
-            if (this.LoginFailed != null)
+            if (LoginFailed != null)
             {
-                this.LoggedIn = false;
-                this.LoginFailed(this, errorcode);
+                LoggedIn = false;
+                LoginFailed(this, errorcode);
             }
         }
 
@@ -647,7 +608,7 @@ namespace csammisrun.OscarLib
         /// <param name="cookie">The rendezvous cookie belonging to the file being transfered</param>
         /// <param name="bytestransfered">The number of bytes transfered so far</param>
         /// <param name="bytestotal">The total number of bytes to be transfered</param>
-        public void OnFileTransferProgress(Cookie cookie,
+        protected internal void OnFileTransferProgress(Cookie cookie,
                                                        uint bytestransfered, uint bytestotal)
         {
             if (this.FileTransferProgress != null)
@@ -675,7 +636,7 @@ namespace csammisrun.OscarLib
         /// <param name="cookie">The rendezvous cookie belonging to the DirectIM session</param>
         /// <param name="bytestransfered">The number of bytes transfered so far</param>
         /// <param name="bytestotal">The total number of bytes to be transfered</param>
-        public void OnDirectIMMessageProgress(bool incoming, Cookie cookie, uint bytestransfered,
+        protected internal void OnDirectIMMessageProgress(bool incoming, Cookie cookie, uint bytestransfered,
                                                           uint bytestotal)
         {
             if (incoming)
@@ -705,7 +666,7 @@ namespace csammisrun.OscarLib
         /// <param name="other">The <see cref="UserInfo"/> of the user on the other side of the connection</param>
         /// <param name="cookie">The rendezvous cookie belonging to the cancelled file</param>
         /// <param name="reason">The reason for the cancellation</param>
-        public void OnFileTransferCancelled(UserInfo other, Cookie cookie, string reason)
+        protected internal void OnFileTransferCancelled(UserInfo other, Cookie cookie, string reason)
         {
             if (this.FileTransferCancelled != null)
             {
@@ -723,7 +684,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="cookie">The rendezvous cookie belonging to the cancelled session</param>
         /// <param name="reason">The reason for the cancellation</param>
-        public void OnDirectIMSessionCancelled(DirectConnection conn, string reason)
+        protected internal void OnDirectIMSessionCancelled(DirectConnection conn, string reason)
         {
             Connections.RemoveDirectConnection(conn.Cookie);
             Messages.SendDirectConnectionCancellation(conn, reason);
@@ -744,7 +705,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="other">A <see cref="UserInfo"/> object describing the other session participant</param>
         /// <param name="cookie">The rendezvous cookie belonging to the cancelled session</param>
-        public void OnDirectIMSessionClosed(UserInfo other, Cookie cookie)
+        protected internal void OnDirectIMSessionClosed(UserInfo other, Cookie cookie)
         {
             Connections.RemoveDirectConnection(cookie);
             if (this.DirectIMSessionClosed != null)
@@ -763,7 +724,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="other">A <see cref="UserInfo"/> object describing the other session participant</param>
         /// <param name="cookie">The rendezvous cookie belonging to the session</param>
-        public void OnDirectConnectionComplete(UserInfo other, Cookie cookie)
+        protected internal void OnDirectConnectionComplete(UserInfo other, Cookie cookie)
         {
             if (this.DirectIMSessionReady != null)
             {
@@ -780,7 +741,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="FileTransferCompleted"/> event
         /// </summary>
         /// <param name="cookie">The rendezvous cookie belonging to the completed file</param>
-        public void OnFileTransferCompleted(Cookie cookie)
+        protected internal void OnFileTransferCompleted(Cookie cookie)
         {
             if (this.FileTransferCompleted != null)
             {
@@ -797,7 +758,7 @@ namespace csammisrun.OscarLib
         /// Raises the <see cref="OscarLib_DirectIMReceived"/> event
         /// </summary>
         /// <param name="message">The <see cref="DirectIM"/> received</param>
-        public void OnDirectIMReceived(DirectIM message)
+        protected internal void OnDirectIMReceived(DirectIM message)
         {
             if (this.DirectIMReceived != null)
             {
@@ -829,7 +790,6 @@ namespace csammisrun.OscarLib
             _screenname = screenname;
             _password = password;
 
-            _socketfactory = new ProxiedSocketFactoryDelegate(Session.DirectSocketConnectionFactory);
             connectionManager = new ConnectionManager(this);
             serviceManager = new ServiceManager(this);
             ssiManager = new SSIManager(this);
@@ -838,6 +798,10 @@ namespace csammisrun.OscarLib
             statusManager = new StatusManager(this);
             chatRoomManager = new ChatRoomManager(this);
             graphicsManager = new GraphicsManager(this);
+            authManager = new AuthorizationManager(this);
+            searchManager = new SearchManager(this);
+            rateManager = new RateClassManager(this);
+            statsManager = new UsageStatsManager(this);
 
             connectionManager.CreateNewConnection(0x0017);
 
@@ -851,9 +815,6 @@ namespace csammisrun.OscarLib
             _loggedin = false;
             _privacy = PrivacySetting.AllowAllUsers;
             _parametercount = 0;
-            snacRequestID = 0;
-
-            _ref = this;
         }
 
         #region Public methods
@@ -861,7 +822,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Sets the session's <see cref="ClientIdentification"/> to the AOL defaults
         /// </summary>
-		/// <exception cref="LoggedInException">Thrown when the <see cref="ISession"/> is already logged in</exception>
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
         public void SetDefaultIdentification()
         {
             if (LoggedIn)
@@ -909,50 +870,61 @@ namespace csammisrun.OscarLib
         /// Begins the process of logging in to the OSCAR service
         /// </summary>
         /// <param name="loginserver">The OSCAR login server</param>
-        /// <param name="port">The OSCAR service port</param>
+        /// <param name="loginport">The OSCAR service port</param>
+        /// <param name="loginssl">Use ssl protocol</param>
         /// <remarks>
         /// <para>
         /// This function is non-blocking, because the login process does not happen
-		/// instantly. The OSCAR library will raise the <see cref="ISession.LoginCompleted"/> event
+        /// instantly. The OSCAR library will raise the <see cref="Session.LoginCompleted"/> event
         /// when the login process has finished successfully.
         /// </para>
         /// <para>
         /// The OSCAR library raises periodic status update events throughout the login process
-		/// via the <see cref="ISession.StatusUpdate"/> event.
+        /// via the <see cref="Session.StatusUpdate"/> event.
         /// </para>
         /// <para>
         /// Errors may occur during the login process;  if an error occurs, the OSCAR library raises
-		/// the <see cref="ISession.ErrorMessage"/> event, and stops the remaining login sequence.
+        /// the <see cref="Session.ErrorMessage"/> event, and stops the remaining login sequence.
         /// </para>
         /// </remarks>
-		/// <exception cref="LoggedInException">Thrown when the <see cref="ISession"/> is already logged in</exception>
-        public void Logon(string loginserver, int port)
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
+        public void Logon(string loginserver, int loginport, bool loginssl)
         {
-            if (LoggedIn)
+            ServerSettings.LoginServer = loginserver;
+            ServerSettings.LoginPort = loginport;
+            ServerSettings.LoginSsl = loginssl;
+            Logon();
+        }
+
+        /// <summary>
+        /// Begins the process of logging in to the OSCAR service with default server
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This function is non-blocking, because the login process does not happen
+        /// instantly. The OSCAR library will raise the <see cref="Session.LoginCompleted"/> event
+        /// when the login process has finished successfully.
+        /// </para>
+        /// <para>
+        /// The OSCAR library raises periodic status update events throughout the login process
+        /// via the <see cref="Session.StatusUpdate"/> event.
+        /// </para>
+        /// <para>
+        /// Errors may occur during the login process;  if an error occurs, the OSCAR library raises
+        /// the <see cref="Session.ErrorMessage"/> event, and stops the remaining login sequence.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
+        public void Logon()
+        {
+            if (LoggedIn) 
             {
                 throw new LoggedInException();
             }
 
             LoggedIn = false;
-
-            Connection conn = connectionManager.GetByFamily(0x0017);
-            conn.ServerConnectionCompleted += new ServerConnectionCompletedHandler(conn_ServerConnnectionCompleted);
-            conn.Server = loginserver;
-            conn.Port = port;
-            conn.Cookie = null;
-            conn.ConnectToServer();
-            this.OnLoginStatusUpdate("Connecting to server", 0.00);
-        }
-
-        /// <summary>
-        /// This is only connected to the initial login server connection
-        /// </summary>
-        /// <param name="conn"></param>
-        public void conn_ServerConnnectionCompleted(Connection conn)
-        {
-            conn.ReadyForData = true;
-            SNAC17.SendMD5Request(this);
-            conn.ReadHeader();
+            Authorization.LoginToService(ServerSettings.LoginServer, ServerSettings.LoginPort, ServerSettings.LoginSsl);
+            OnLoginStatusUpdate("Connecting to server", 0.00);
         }
 
         /// <summary>
@@ -968,115 +940,6 @@ namespace csammisrun.OscarLib
             }
         }
 
-        
-
-        /// <summary>
-        /// Sets the client's available message
-        /// </summary>
-        /// <param name="message">The available message to set</param>
-        /// <remarks>
-        /// <para>
-        /// If the session is logged in at the time SetAvailableMessage is called, the
-        /// available message is reset immediately. Otherwise, it will be set once the
-        /// session is logged in.
-        /// </para>
-        /// </remarks>
-        public void SetAvailableMessage(string message)
-        {
-            availableMessage = message;
-
-            if (LoggedIn)
-            {
-                Services.SetAvailableMessage(message);
-            }
-        }
-
-        /// <summary>
-        /// Requests long information about a user
-        /// </summary>
-        /// <param name="screenname">The user to get information about</param>
-        /// <param name="type">The type of information to request</param>
-        /// <remarks>Results are returned by the <see cref="UserInfoReceived"/> event</remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void RequestUserInfo(string screenname, UserInfoRequest type)
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            if (ScreennameVerifier.IsValidICQ(screenname))
-            {
-                SNAC02.RequestBasicUserInfo(this, screenname, BasicUserInfoRequest.AwayMessage);
-            }
-            else
-            {
-                SNAC02.RequestUserInfo(this, screenname, type);
-            }
-        }
-
-        /// <summary>
-        /// Requests basic user information
-        /// </summary>
-        /// <param name="screenname">The user to get information about</param>
-        /// <param name="type">The type of information to request</param>
-        /// <remarks>
-        /// <para>Results are returned by the <see cref="UserInfoReceived"/> event</para>
-        /// <para>Gaim uses this method of user info request exclusively</para>
-        /// </remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void RequestBasicUserInfo(string screenname, BasicUserInfoRequest type)
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            SNAC02.RequestBasicUserInfo(this, screenname, type);
-        }
-
-        /// <summary>
-        /// Requests a list of accounts associated with an email address
-        /// </summary>
-        /// <param name="email">The email address to use while searching</param>
-        /// <throws cref="System.Exception">Thrown when the session is not logged in</throws>
-        /// <remarks>Results are returned by the <see cref="SearchByEmailResults"/> event</remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void SearchUsersByEmail(string email)
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            SNAC0A.FindUsersByEmail(this, email);
-        }
-
-        /// <summary>
-        /// Sends an invitation to join AIM
-        /// </summary>
-        /// <param name="email">The email address of the person to invite</param>
-        /// <param name="text">The text of the invitation</param>
-        /// <remarks>
-        /// The libfaim documentation contains this delightful vignette:
-        /// <code>Once upon a time, there used to be a menu item in AIM clients that
-        /// said something like "Invite a friend to use AIM..." and then it would
-        /// ask for an email address and it would sent a mail to them saying
-        /// how perfectly wonderful the AIM service is and why you should use it
-        /// and click here if you hate the person who sent this to you and want to
-        /// complain and yell at them in a small box with pretty fonts.</code>
-        /// </remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void SendAIMInvitation(string email, string text)
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            SNAC06.SendInvitiationRequest(this, email, text);
-        }
-
         /// <summary>
         /// Adds a buddy to the client's server-side buddy list
         /// </summary>
@@ -1090,7 +953,7 @@ namespace csammisrun.OscarLib
         /// <param name="soundfile">The soundfile for the buddy ("" for none)</param>
         /// <param name="authorziationRequired"><c>true</c> if we require authorization for this buddy, <c>false</c> otherwise</param>
         ///<param name="authorizationReason">The authorization reason/message that will be send to the client</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         /// <remarks>This function will probably not remain here; the SSI Manager will be made public</remarks>
         [Obsolete("This method is obsolete and will be removed soon. Use the overloaded AddBuddy method without the index parameter.")]
         public void AddBuddy(string screenname, ushort parentID, int index, string alias, string email, string comment,
@@ -1116,7 +979,7 @@ namespace csammisrun.OscarLib
         /// <param name="soundfile">The soundfile for the buddy ("" for none)</param>
         /// <param name="authorziationRequired"><c>true</c> if we require authorization for this buddy, <c>false</c> otherwise</param>
         ///<param name="authorizationReason">The authorization reason/message that will be send to the client</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         /// <remarks>This function will probably not remain here; the SSI Manager will be made public</remarks>
         public void AddBuddy(string screenname, ushort parentID, string alias, string email, string comment,
                              string SMS, string soundfile, bool authorziationRequired, string authorizationReason)
@@ -1143,20 +1006,20 @@ namespace csammisrun.OscarLib
                 throw new NotLoggedInException();
             }
 
-            this.SSI.MoveBuddy(this.SSI.GetBuddyByID(buddyID, parentID), this.SSI.GetGroupByID(parentID), index);
+            this.SSI.MoveBuddy(this.SSI.GetBuddyByID(buddyID), this.SSI.GetGroupByID(parentID), index);
         }
 
         /// <summary>
         /// Remove a buddy
         /// </summary>
         /// <param name="buddyID">The ID of the buddy to remove</param>
-        public void RemoveBuddy(ushort buddyID, ushort parentID)
+        public void RemoveBuddy(ushort buddyID)
         {
             if (!LoggedIn)
             {
                 throw new NotLoggedInException();
             }
-            SSIBuddy buddy = this.SSI.GetBuddyByID(buddyID, parentID);
+            SSIBuddy buddy = this.SSI.GetBuddyByID(buddyID);
             if(buddy != null)
                 this.SSI.RemoveBuddy(buddy);
         }
@@ -1262,7 +1125,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Requests a list of user interests from the server
         /// </summary>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public void RequestInterestsList()
         {
             if (!LoggedIn)
@@ -1271,35 +1134,6 @@ namespace csammisrun.OscarLib
             }
 
             SNAC0F.RequestInterestList(this);
-        }
-
-        /// <summary>
-        /// Sends a client status report to the server
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// This report contains generic information about the client's machine. Its contents are as follows:
-        /// <list>
-        /// <item>The time the report was sent</item>
-        /// <item>The client's screenname</item>
-        /// <item>The name and version of Windows on this machine</item>
-        /// <item>The name of this machine's processor</item>
-        /// <item>The name and version of this machine's Winsock library</item>
-        /// </list>
-        /// </para>
-        /// <para>This report should be sent at regular intervals by the client application. The minimum required
-        /// reporting interval is sent by the server during login and received by the
-        /// <see cref="ReportingIntervalReceived"/> event</para>
-        /// </remarks>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void SendStatusReport()
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            SNAC0B.SendStatusReport(this);
         }
 
         /// <summary>
@@ -1373,27 +1207,6 @@ namespace csammisrun.OscarLib
             SNAC13.SendContactListCheckout(this, this.LastModificationDate, true, localSSIItemCount);
         }
 
-        #region Icon methods
-
-        /// <summary>
-        /// Requests a remote client's buddy icon
-        /// </summary>
-        /// <param name="screenname">The screenname of the client</param>
-        /// <param name="icon">The <see cref="IconInfo"/> of the client's icon, received from the
-        /// <see cref="StatusManager.UserStatusReceived"/> event</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
-        public void GetBuddyIcon(string screenname) //, IconInfo icon)
-        {
-            if (!LoggedIn)
-            {
-                throw new NotLoggedInException();
-            }
-
-            //SNAC10.RequestIcon(this, screenname); //, icon);
-        }
-
-        #endregion
-
         #region File transfer methods
 
         /// <summary>
@@ -1403,7 +1216,7 @@ namespace csammisrun.OscarLib
         /// <param name="filename">The path of the file to send</param>
         /// <returns>A key with which to reference this file transfer, or "" if a warning was
         /// generated during the initialization process</returns>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public Cookie SendFile(string recipient, string filename)
         {
             if (!LoggedIn)
@@ -1426,7 +1239,7 @@ namespace csammisrun.OscarLib
         /// <param name="message">A message with which to invite the remote client</param>
         /// <returns>A key with which to reference this DirectIM session, or "" if a warning was
         /// generated during the initialization process</returns>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public Cookie StartDirectIM(string recipient, string message)
         {
             if (!LoggedIn)
@@ -1449,7 +1262,7 @@ namespace csammisrun.OscarLib
         /// <param name="filename">The path of the file to send</param>
         /// <returns>A key with which to reference this file transfer, or "" if a warning was
         /// generated during the initialization process</returns>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public Cookie SendFileProxied(string recipient, string filename)
         {
             if (!LoggedIn)
@@ -1472,7 +1285,7 @@ namespace csammisrun.OscarLib
         /// <param name="message">A message with which to invite the remote client</param>
         /// <returns>A key with which to reference this DirectIM session, or "" if a warning was
         /// generated during the initialization process</returns>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         public Cookie StartDirectIMProxied(string recipient, string message)
         {
             if (!LoggedIn)
@@ -1515,7 +1328,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="key">The key received in the <see cref="FileTransferRequestReceived"/> event</param>
         /// <param name="savelocation">The path to which to save the file</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         /// <exception cref="System.Exception">Thrown when <paramref name="key"/> is not a valid file transfer key</exception>
         public void AcceptFileTransfer(Cookie key, string savelocation)
         {
@@ -1540,7 +1353,7 @@ namespace csammisrun.OscarLib
         /// Cancel a pending or in-progress file transfer
         /// </summary>
         /// <param name="key">The key received with the transfer request</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         /// <exception cref="System.Exception">Thrown when <paramref name="key"/> is not a valid file transfer key</exception>
         public void CancelFileTransfer(Cookie key)
         {
@@ -1560,7 +1373,7 @@ namespace csammisrun.OscarLib
         /// Cancel a pending or in-progress Direct IM session
         /// </summary>
         /// <param name="key">The key received with the connection request</param>
-		/// <exception cref="NotLoggedInException">Thrown when the <see cref="ISession"/> is not logged in</exception>
+        /// <exception cref="NotLoggedInException">Thrown when the <see cref="Session"/> is not logged in</exception>
         /// <exception cref="System.Exception">Thrown when <paramref name="key"/> is not a valid file transfer key</exception>
         public void CancelDirectIMSession(Cookie key)
         {
@@ -1579,55 +1392,9 @@ namespace csammisrun.OscarLib
 
         #endregion
 
-        #region ICQ methods
-
-        /// <summary>
-        /// Update the user's ICQ settings on the server
-        /// </summary>
-        /// <param name="info"></param>
-        public void SetICQInfo(ICQInfo info)
-        {
-            if (!ScreennameVerifier.IsValidICQ(this.ScreenName))
-            {
-                throw new NotSupportedException("Cannot set ICQ info on a non-ICQ account");
-            }
-
-            // TODO:  Assign info struct, perhaps doing a diff with
-            // an existing structure and uploading the changes...
-            // need to check on that functionality
-        }
-
-        #endregion
-
         #endregion
 
         #region Internal methods
-
-        /// <summary>
-        /// Gets the next SNAC request ID in the sequence 0 through 2^32 - 1, inclusive
-        /// </summary>
-        /// <returns>The next SNAC request ID</returns>
-        /// <remarks>The request ID sequence wraps around if it is about to overflow</remarks>
-        protected internal static uint GetNextRequestID()
-        {
-            lock (Session._ref)
-            {
-                if (snacRequestID == uint.MaxValue) snacRequestID = 0;
-                return snacRequestID++;
-            }
-        }
-
-        //		/// <summary>
-        //		/// Gets the next FLAP sequence ID in the sequence 0 through 2^15 - 1, inclusive
-        //		/// </summary>
-        //		/// <returns>The next FLAP sequence ID</returns>
-        //		/// <remarks>The sequence ID series wraps around if it is about to overflow</remarks>
-        //		protected internal ushort GetNextFLAPSequence()
-        //		{
-        //			if(_flap_sequence_num == 0x8000) _flap_sequence_num = 0;
-        //			return _flap_sequence_num++;
-        //		}
-
         /// <summary>
         /// Returns an MD5 hash of the client's password, an authorization key, and a constant string
         /// </summary>
@@ -1647,7 +1414,7 @@ namespace csammisrun.OscarLib
         /// This method exists to prevent the password from having to be passed around in a data structure
         /// </para>
         /// </remarks>
-        public byte[] HashPassword(byte[] authkey)
+        protected internal byte[] HashPassword(byte[] authkey)
         {
             MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 
@@ -1664,7 +1431,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="requestid">A SNAC request ID</param>
         /// <param name="data">The data to be stored</param>
-        public void StoreRequestID(uint requestid, object data)
+        protected internal void StoreRequestID(uint requestid, object data)
         {
             _requestidstorage.Add(requestid, data);
         }
@@ -1674,7 +1441,7 @@ namespace csammisrun.OscarLib
         /// </summary>
         /// <param name="requestid">A SNAC request ID</param>
         /// <returns>The data previously stored by <see cref="StoreRequestID"/></returns>
-        public object RetrieveRequestID(uint requestid)
+        protected internal object RetrieveRequestID(uint requestid)
         {
             return _requestidstorage[requestid];
         }
@@ -1684,7 +1451,7 @@ namespace csammisrun.OscarLib
         /// Sets the session's privacy setting sent by the server in SNAC(13,06)
         /// </summary>
         /// <param name="ps">One of the <see cref="PrivacySetting"/> enumeration members</param>
-        public void SetPrivacyFromServer(PrivacySetting ps)
+        protected internal void SetPrivacyFromServer(PrivacySetting ps)
         {
             _privacy = ps;
         }
@@ -1693,7 +1460,7 @@ namespace csammisrun.OscarLib
         /// Sets whether or not the client's idle time is public -- SNAC(13,06)
         /// </summary>
         /// <param name="publicidletime">true if others can see this client's idle time, false otherwise</param>
-        public void SetPresence(bool publicidletime)
+        protected internal void SetPresence(bool publicidletime)
         {
             _publicidletime = publicidletime;
         }
@@ -1701,7 +1468,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Keeps track of the SNAC parameter responses that have been received thus far
         /// </summary>
-        public void ParameterSetArrived()
+        protected internal void ParameterSetArrived()
         {
             _parametercount++;
 
@@ -1714,7 +1481,6 @@ namespace csammisrun.OscarLib
         #endregion
 
         #region Properties
-
         /// <summary>
         /// Gets or sets the screen name associated with this session
         /// </summary>
@@ -1744,34 +1510,21 @@ namespace csammisrun.OscarLib
         }
 
         /// <summary>
-        /// Gets or sets the port number used for OSCAR logins
+        /// Gets or sets this session's OSCAR identification information
         /// </summary>
-        /// <remarks>
-        /// Traditionally, this is port 5190; however, AIM 6 has been caught using port 443 to negotiate
-        /// connections with login.oscar.aol.com and ars.oscar.aol.com.  Future versions of OscarLib may use
-        /// this property to support login via port 443.
-        /// </remarks>
-        public ushort LoginPort
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
+        public OSCARIdentification ClientIdentification
         {
-            get { return _loginport; }
-            internal set { _loginport = value; }
+            get { return _clientid; }
         }
 
         /// <summary>
         /// Gets or sets this session's OSCAR identification information
         /// </summary>
-		/// <exception cref="LoggedInException">Thrown when the <see cref="ISession"/> is already logged in</exception>
-        public OSCARIdentification ClientIdentification
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
+        public ServerInfo ServerSettings
         {
-            get { return _clientid; }
-            set
-            {
-                if (LoggedIn)
-                {
-                    throw new LoggedInException("Identification cannot be changed after the session is logged in");
-                }
-                _clientid = value;
-            }
+            get { return _serverSettings; }
         }
 
         /// <summary>
@@ -1782,7 +1535,7 @@ namespace csammisrun.OscarLib
         /// client's capabilities are communicated during the login process and are kept through
         /// the session.
         /// </remarks>
-		/// <exception cref="LoggedInException">Thrown when the <see cref="ISession"/> is already logged in</exception>
+        /// <exception cref="LoggedInException">Thrown when the <see cref="Session"/> is already logged in</exception>
         public Capabilities ClientCapabilities
         {
             get { return _caps; }
@@ -1807,29 +1560,11 @@ namespace csammisrun.OscarLib
         private Encoding encoding;
 
         /// <summary>
-        /// Gets the recommented enocding format depending on the client capability settings
+        /// Gets the recommended enocding format depending on the client capability settings
         /// </summary>
         public Encoding Encoding
         {
             get { return encoding; }
-        }
-
-        /// <summary>
-        /// Gets the session's Available message string
-        /// </summary>
-        /// <remarks>To set the the session's Available message, use the
-		/// <see cref="ISession.SetAvailableMessage"/> method</remarks>
-        public string AvailableMessage
-        {
-            get { return availableMessage; }
-        }
-
-        /// <summary>
-        /// Gets a value indicating whether this client's idle time is publicly available
-        /// </summary>
-        public bool PublicIdleTime
-        {
-            get { return _publicidletime; }
         }
 
         /// <summary>
@@ -1898,6 +1633,14 @@ namespace csammisrun.OscarLib
         }
 
         /// <summary>
+        /// Gets the <see cref="SearchManager"/> associated with this session
+        /// </summary>
+        public SearchManager Searches
+        {
+            get { return searchManager; }
+        }
+
+        /// <summary>
         /// Gets or sets a filesystem path where OscarLib can place received data
         /// </summary>
         /// <remarks>During an OSCAR Direct Connect session, "transient" files may come over the wire.
@@ -1913,7 +1656,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Gets the <see cref="ConnectionManager"/> associated with this session
         /// </summary>
-        public ConnectionManager Connections
+        internal ConnectionManager Connections
         {
             get { return connectionManager; }
         }
@@ -1921,7 +1664,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Gets the <see cref="ServiceManager"/> associated with this session
         /// </summary>
-        public ServiceManager Services
+        internal ServiceManager Services
         {
             get { return serviceManager; }
         }
@@ -1929,7 +1672,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Gets the <see cref="PacketDispatcher"/> associated with this session
         /// </summary>
-        public PacketDispatcher Dispatcher
+        internal PacketDispatcher Dispatcher
         {
             get { return dispatcher; }
         }
@@ -1937,51 +1680,33 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Gets the <see cref="FamilyManager"/> associated with this session
         /// </summary>
-		public FamilyManager Families
+        internal FamilyManager Families
         {
             get { return familyManager; }
         }
 
         /// <summary>
-        /// Gets a reference to the current session
+        /// Gets the <see cref="RateClassManager"/> associated with this session
         /// </summary>
-        internal static Session CurrentSession
-        {
-            get { return _ref; }
-        }
-
-        /// <summary>
-        /// Gets or sets the <see cref="RateClassManager"/> associated with this session
-        /// </summary>
-		public RateClassManager RateClasses
+        internal RateClassManager RateClasses
         {
             get { return rateManager; }
         }
 
-        private ProxiedSocketFactoryDelegate _socketfactory = null;
-
         /// <summary>
-        /// Gets or sets the <see cref="ProxiedSocketFactoryDelegate"/> to use to create new socket connections
+        /// Gets the <see cref="RateClassManager"/> associated with this session
         /// </summary>
-        /// <remarks>By default, this property is set to <see cref="Session.DirectSocketConnectionFactory"/></remarks>
-        public ProxiedSocketFactoryDelegate ProxiedSocketFactory
-        {
-            get { return _socketfactory; }
-            set { _socketfactory = value; }
+        internal UsageStatsManager Stats {
+            get { return statsManager; }
         }
 
+        /// <summary>
+        /// Gets the <see cref="AuthorizationManager"/> associated with this session
+        /// </summary>
+        internal AuthorizationManager Authorization
+        {
+            get { return authManager; }
+        }
         #endregion
-
-        /// <summary>
-        /// Implements an asynchronous socket connection factory that operates with no network proxy
-        /// </summary>
-        /// <param name="host">The host to which to connect</param>
-        /// <param name="port">The port on the host to which to connect</param>
-        /// <param name="callback">A <see cref="Delegate"/> to be called when the socket creation is complete</param>
-        /// <remarks>This is a public wrapper to the internal method <see cref="Connection.CreateDirectConnectSocket"/></remarks>
-        public static void DirectSocketConnectionFactory(string host, int port, Delegate callback)
-        {
-            Connection.CreateDirectConnectSocket(host, port, callback);
-        }
     }
 }

@@ -102,7 +102,7 @@ namespace csammisrun.OscarLib.Utility
 
         private Capabilities _capability = Capabilities.None;
         private byte[] _cookie = new byte[8];
-		private ISession _parent = null;
+        private Session _parent = null;
         private RendezvousSequence _sequence = RendezvousSequence.DirectOrStage1;
         private bool _useproxy = false;
         private UserInfo _userinfo = null;
@@ -132,9 +132,9 @@ namespace csammisrun.OscarLib.Utility
         #region Properties
 
         /// <summary>
-		/// Gets or sets the <see cref="ISession"/> that owns this connection
+        /// Gets or sets the <see cref="Session"/> that owns this connection
         /// </summary>
-		public ISession ParentSession
+        public Session ParentSession
         {
             get { return _parent; }
             set { _parent = value; }
@@ -390,7 +390,7 @@ namespace csammisrun.OscarLib.Utility
 
     //}
 
-    public class ChatInvitation
+    internal class ChatInvitation
     {
         public Encoding Encoding = Encoding.ASCII;
         public string Language = "";

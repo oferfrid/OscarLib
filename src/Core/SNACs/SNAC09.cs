@@ -8,16 +8,26 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Sends a request for parameter information -- SNAC(09,02)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void RequestParametersList(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void RequestParametersList(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.PrivacyManagementService;
             sh.FamilySubtypeID = (ushort) PrivacyManagementService.ServiceParametersRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
+        }
+
+        //KSD-SYSTEMS - added at 27.11.2009
+        /// <summary>
+        /// Processes a other clients request for parameter information -- SNAC(09,02)
+        /// </summary>
+        /// <param name="dp">A <see cref="DataPacket"/> object with a buffer containing SNAC(09,02)</param>
+        public static void ProcessParametersListRequest(DataPacket dp)
+        {
+            // a client want receive information with your id on flap.Channel = 04 (= DisconnectFromServer = on this flap.Channel no Datapacket Handling)
+            // dp.ParentSession.OnError(ServerErrorCode.ExternalClientRequest);
         }
 
         /// <summary>

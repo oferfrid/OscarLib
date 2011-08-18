@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="2.0">
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <ProjectType>Local</ProjectType>
     <ProductVersion>9.0.30729</ProductVersion>
@@ -27,7 +27,7 @@
     </FileUpgradeFlags>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
-    <OldToolsVersion>2.0</OldToolsVersion>
+    <OldToolsVersion>3.5</OldToolsVersion>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -43,7 +43,6 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <TargetFrameworkProfile />
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -67,6 +66,8 @@
     <WarningLevel>4</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -89,6 +90,7 @@
     <WarningLevel>4</WarningLevel>
     <DebugType>none</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'AutomatedDebug|AnyCPU' ">
     <OutputPath>..\..\build\Debug\Core\</OutputPath>
@@ -119,6 +121,7 @@
     <Reference Include="System.Data">
       <Name>System.Data</Name>
     </Reference>
+    <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms">
       <Name>System.Windows.Forms</Name>
     </Reference>
@@ -139,6 +142,7 @@
     </Compile>
     <Compile Include="ConnectionHandlers\DirectConnection.cs" />
     <Compile Include="ConnectionHandlers\DirectIMConnection.cs" />
+    <Compile Include="ConnectionHandlers\ProxySocketConnector.cs" />
     <Compile Include="ConnectionHandlers\Family.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -150,6 +154,7 @@
     <Compile Include="ConnectionHandlers\RateClass.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ConnectionHandlers\StreamSocket.cs" />
     <Compile Include="Delegates.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -183,6 +188,7 @@
     <Compile Include="EnumsStructs\Privacy.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="EnumsStructs\ServerInfo.cs" />
     <Compile Include="EnumsStructs\SNACFamilies.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -197,17 +203,18 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="EventArgs.cs" />
-    <Compile Include="ISession.cs" />
     <Compile Include="Logging.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Marshal.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ObjectManagers\AuthorizationManager.cs" />
     <Compile Include="ObjectManagers\ChatRoomManager.cs" />
     <Compile Include="ObjectManagers\ConnectionManager.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ObjectManagers\ContactsManager.cs" />
     <Compile Include="ObjectManagers\FamilyManager.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -218,9 +225,11 @@
     <Compile Include="ObjectManagers\RateClassManager.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ObjectManagers\SearchManager.cs" />
     <Compile Include="ObjectManagers\SSIManager.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ObjectManagers\UsageStatsService.cs" />
     <Compile Include="ObjectManagers\StatusManager.cs" />
     <Compile Include="ObjectManagers\ServiceManager.cs" />
     <Compile Include="Session.cs">
@@ -229,32 +238,13 @@
     <Compile Include="SNACs\SNAC02.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="SNACs\SNAC06.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SNACs\SNAC08.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="SNACs\SNAC09.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SNACs\SNAC0A.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SNACs\SNAC0B.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SNACs\SNAC0F.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SNACs\SNAC13.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SNACs\SNAC15.cs" />
-    <Compile Include="SNACs\SNAC17.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SNACs\SNAC18.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SNACs\SNACFunctions.cs">

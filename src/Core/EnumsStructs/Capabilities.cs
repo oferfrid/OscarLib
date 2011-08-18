@@ -7,11 +7,13 @@
  * 
  */
 
+using System;
 namespace csammisrun.OscarLib
 {
     /// <summary>
     /// Describes OSCAR client capabilities
     /// </summary>
+    [Flags]
     public enum Capabilities
     {
         /// <summary>

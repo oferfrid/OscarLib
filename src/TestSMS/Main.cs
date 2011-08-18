@@ -16,6 +16,8 @@ namespace TestSMS
 			Console.WriteLine("Beginning login sequence");
 			SMSManager  mc = new SMSManager(name, password);
 			
+			Console.WriteLine("Write sendicq for sending to icq and sendicq for SMS sending")
+			
 			string line;
 			while ((line = Console.ReadLine()) != "exit")
 			{

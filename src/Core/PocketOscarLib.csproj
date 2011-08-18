@@ -54,6 +54,7 @@
     <Compile Include="ConnectionHandlers\Connection.cs" />
     <Compile Include="ConnectionHandlers\DataPacket.cs" />
     <Compile Include="ConnectionHandlers\DirectConnection.cs" />
+    <Compile Include="ConnectionHandlers\ProxySocketConnector.cs" />
     <Compile Include="ConnectionHandlers\DirectIMConnection.cs" />
     <Compile Include="ConnectionHandlers\Family.cs" />
     <Compile Include="ConnectionHandlers\FileTransferConnection.cs" />
@@ -70,7 +71,6 @@
     <Compile Include="EnumsStructs\Environ.cs" />
     <Compile Include="EnumsStructs\ICQStatusFlags.cs" />
     <Compile Include="EnumsStructs\InterestItem.cs" />
-    <Compile Include="EnumsStructs\MessageFlags.cs" />
     <Compile Include="EnumsStructs\OSCARIdentification.cs" />
     <Compile Include="EnumsStructs\Privacy.cs" />
     <Compile Include="EnumsStructs\RendezevousStructs.cs" />
@@ -79,7 +79,6 @@
     <Compile Include="EnumsStructs\SSIitem.cs" />
     <Compile Include="EnumsStructs\TLV.cs" />
     <Compile Include="EnumsStructs\TypingNotification.cs" />
-    <Compile Include="EnumsStructs\UndeliverableMessageReason.cs" />
     <Compile Include="EnumsStructs\Userinfo.cs" />
     <Compile Include="EventArgs.cs" />
     <Compile Include="Logging.cs" />
@@ -94,9 +93,9 @@
     <Compile Include="ObjectManagers\RendezvousManager.cs" />
     <Compile Include="ObjectManagers\SSIManager.cs" />
     <Compile Include="ObjectManagers\StatusManager.cs" />
+    <Compile Include="ObjectManagers\ServiceManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Session.cs" />
-    <Compile Include="SNACs\SNAC01.cs" />
     <Compile Include="SNACs\SNAC02.cs" />
     <Compile Include="SNACs\SNAC06.cs" />
     <Compile Include="SNACs\SNAC08.cs" />

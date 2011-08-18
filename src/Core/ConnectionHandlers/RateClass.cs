@@ -13,6 +13,12 @@ using System.Threading;
 
 namespace csammisrun.OscarLib.Utility
 {
+    enum RateClassState
+    {
+        Normal,
+        Warning,
+        Limited,
+    }
     /// <summary>
     /// Encapsulates one of the rate classes
     /// </summary>
@@ -23,16 +29,18 @@ namespace csammisrun.OscarLib.Utility
     /// http://kopete.kde.org/
     /// </para>
     /// </remarks>
-    public class RateClass
+    internal class RateClass
     {
-        private const int RATE_SAFETY_DANCE = 50;
+        private const int RATE_SAFETY_DANCE = 75;
+
+        private RateClassState currentState = RateClassState.Normal;
 
         private uint _alertlevel;
         private uint _clearlevel;
 
         private uint _currentlevel;
 
-        private byte _currentstate;
+        private bool isDroppingPackets;
         private uint _disconnectlevel;
 
         private uint _initiallevel;
@@ -47,11 +55,17 @@ namespace csammisrun.OscarLib.Utility
         private int _starttime = 0;
         private uint _windowsize;
 
+        private readonly Session parent;
+        private readonly int id;
+
         /// <summary>
         /// Creates a new rate class
         /// </summary>
-        public RateClass()
+        public RateClass(Session parent, int id)
         {
+            this.parent = parent;
+            this.id = id;
+
             _sendtimer = new Timer(new TimerCallback(SetTimer), null, Timeout.Infinite, Timeout.Infinite);
             _starttime = Environment.TickCount;
         }
@@ -83,17 +97,32 @@ namespace csammisrun.OscarLib.Utility
         /// <remarks>See the remarks for <see cref="RateClass"/> for code credit.</remarks>
         private int TimeToNextSend()
         {
-            int newlevel = 0;
-            int timediff = Environment.TickCount - _starttime;
-            newlevel = CalculateNewLevel(timediff);
-
-            int maxpacket = (int) _alertlevel + RATE_SAFETY_DANCE;
-            if (newlevel < maxpacket || newlevel < _disconnectlevel)
+            switch(currentState)
             {
-                // Warn the parent to stop sending stuff so damn fast!
-                int waittime = (int) ((_windowsize*maxpacket) - ((_windowsize - 1)*_currentlevel));
-                return waittime;
+                case RateClassState.Normal:
+                    return RATE_SAFETY_DANCE;
+                case RateClassState.Warning:
+                    return RATE_SAFETY_DANCE * 5;
+                case RateClassState.Limited:
+                    return RATE_SAFETY_DANCE * 10;
             }
+            //int newlevel = 0;
+            //int timediff = Environment.TickCount - _starttime;
+            //newlevel = CalculateNewLevel(timediff);
+
+            //int maxpacket = (int) _alertlevel + RATE_SAFETY_DANCE;
+            //if (newlevel < maxpacket || newlevel < _alertlevel)
+            //{
+            //    int waittime = (int)maxpacket;// ((_windowsize * maxpacket) - ((_windowsize - 1) * _currentlevel));
+
+            //    // Warn the parent to stop sending stuff so damn fast!
+            //    Logging.WriteString("Rate recalc is returning {0}, ws {1} mp {2} cl {3} td {4} st {5}",
+            //        waittime, _windowsize, maxpacket, _currentlevel, timediff, _starttime);
+            //    parent.OnWarning(ServerErrorCode.ClientRateLimited);
+
+
+            //    return waittime;
+            //}
 
             return RATE_SAFETY_DANCE;
         }
@@ -106,7 +135,7 @@ namespace csammisrun.OscarLib.Utility
         /// <remarks>See the remarks for <see cref="RateClass"/> for code credit.</remarks>
         private int CalculateNewLevel(int timediff)
         {
-            int retval = (int) ((((_windowsize - 1)*_currentlevel) + timediff)/_windowsize);
+            int retval = (int) ((((_windowsize - 1) * _currentlevel) + timediff) / _windowsize);
 
             /* This, this right here, makes NO SENSE -- never raise the level above the current? */
             if (retval > _initiallevel)
@@ -168,6 +197,15 @@ namespace csammisrun.OscarLib.Utility
         }
 
         #region Properties
+        public RateClassState State
+        {
+            get { return currentState; }
+            set
+            {
+                Logging.WriteString("RateClass {0} is in state {1}", id, currentState);
+                currentState = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the size of the window used in calculating the average time between packets
@@ -273,20 +311,16 @@ namespace csammisrun.OscarLib.Utility
         }
 
         /// <summary>
-        /// Gets or sets the client's current packet sending state
+        /// Gets or sets a value indicating whether or not the server is dropping SNACs in this rate class
         /// </summary>
-        /// <remarks>
-        /// For a screen name that has never sent any packets, the server sets this value
-        /// to 0.
-        /// </remarks>
-        public byte CurrentState
+        public bool IsDroppingSNACs
         {
             get
             {
                 //SetCurrentState();
-                return _currentstate;
+                return isDroppingPackets;
             }
-            set { _currentstate = value; }
+            set { isDroppingPackets = value; }
         }
 
         #endregion

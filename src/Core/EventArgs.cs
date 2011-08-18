@@ -12,6 +12,30 @@ using System;
 namespace csammisrun.OscarLib
 {
     /// <summary>
+    /// Contains information concerning a client adding the locally logged in UIN to their list
+    /// </summary>
+    public class AddedToRemoteListEventArgs : EventArgs
+    {
+        private string uin;
+
+        /// <summary>
+        /// Initializes a new AddedToRemoteListEventArgs
+        /// </summary>
+        public AddedToRemoteListEventArgs(String uin)
+        {
+            this.uin = uin;
+        }
+
+        /// <summary>
+        /// Gets the UIN of the user that added the locally logged in UIN to their list
+        /// </summary>
+        public String Uin
+        {
+            get { return uin; }
+        }
+    }
+
+    /// <summary>
     /// Describes an event received from the server indicating that
     /// a remote user could not send this client a message
     /// </summary>

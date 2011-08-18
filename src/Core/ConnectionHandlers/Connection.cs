@@ -12,6 +12,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
+using System.IO;
+using System.Text;
 
 namespace csammisrun.OscarLib.Utility
 {
@@ -30,163 +32,25 @@ namespace csammisrun.OscarLib.Utility
     /// </summary>
     public class Connection
     {
-        #region Static socket factory methods
-
+        #region Protected members
         /// <summary>
-        /// Begins the socket creation process
+        /// The <see cref="Session"/> that owns this connection
         /// </summary>
-        public static void CreateDirectConnectSocket(string host, int port, Delegate callback)
-        {
-            // Make sure the callback is the right type
-            // TODO: Better error prevention for CF?
-#if !WindowsCE
-            ParameterInfo[] param = callback.Method.GetParameters();
-            if (param.Length != 2 || param[0].ParameterType != typeof (Socket) ||
-                param[1].ParameterType != typeof (string))
-            {
-                throw new ArgumentException("Callback delegate must take a Socket and a string as its parameters");
-            }
-#endif
-
-            SocketConnectionData scd = new SocketConnectionData();
-            scd.Callback = callback;
-            scd.Port = port;
-            scd.Server = host;
-            scd.Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            try
-            {
-                Dns.BeginGetHostEntry(scd.Server, new AsyncCallback(CreateDCSEndDnsLookup), scd);
-            }
-            catch (SocketException sockex)
-            {
-                string message = "Cannot connect to DNS service:"
-                                 + Environ.NewLine + sockex.Message;
-
-#if WindowsCE
-		ProxiedSocketFactoryResultHandler handler = (callback as ProxiedSocketFactoryResultHandler);
-		handler(scd.Socket, message);
-#else
-                callback.DynamicInvoke(scd.Socket, message);
-#endif
-            }
-        }
-
-        /// <summary>
-        /// Ends the DNS lookup phase of connection and begins connecting the socket to the host
-        /// </summary>
-        protected static void CreateDCSEndDnsLookup(IAsyncResult res)
-        {
-            SocketConnectionData scd = null;
-
-            IPHostEntry hosts = null;
-            try
-            {
-                scd = res.AsyncState as SocketConnectionData;
-                hosts = Dns.EndGetHostEntry(res);
-            }
-            catch (Exception sockex)
-            {
-                string message = "Cannot resolve server:"
-                                 + Environ.NewLine + sockex.Message;
-
-#if WindowsCE
-		ProxiedSocketFactoryResultHandler handler = (scd.Callback as ProxiedSocketFactoryResultHandler);
-		handler(scd.Socket, message);
-#else
-                scd.Callback.DynamicInvoke(scd.Socket, message);
-#endif
-                return;
-            }
-
-            IPAddress address = hosts.AddressList[0];
-            IPEndPoint ipep = new IPEndPoint(address, scd.Port);
-
-            try
-            {
-                scd.Socket.BeginConnect(ipep, new AsyncCallback(CreateDCSEndInitialConnection), scd);
-            }
-            catch (SocketException sockex)
-            {
-                string message = "Cannot connect to server:"
-                                 + Environ.NewLine + sockex.Message;
-
-#if WindowsCE
-		ProxiedSocketFactoryResultHandler handler = (scd.Callback as ProxiedSocketFactoryResultHandler);
-		handler(scd.Socket, message);
-#else
-                scd.Callback.DynamicInvoke(scd.Socket, message);
-#endif
-            }
-        }
-
-        /// <summary>
-        /// Ends the connection phase and returns a connected socket
-        /// </summary>
-        protected static void CreateDCSEndInitialConnection(IAsyncResult res)
-        {
-            SocketConnectionData scd = null;
-            try
-            {
-                scd = res.AsyncState as SocketConnectionData;
-                scd.Socket.EndConnect(res);
-#if WindowsCE
-		ProxiedSocketFactoryResultHandler handler = (scd.Callback as ProxiedSocketFactoryResultHandler);
-		handler(scd.Socket, "");
-#else
-                scd.Callback.DynamicInvoke(scd.Socket, "");
-#endif
-            }
-            catch (Exception sockex)
-            {
-                string message = "Can't connect to server: "
-                                 + Environ.NewLine + sockex.Message;
-
-#if WindowsCE
-		ProxiedSocketFactoryResultHandler handler = (scd.Callback as ProxiedSocketFactoryResultHandler);
-		handler(scd.Socket, message);
-#else
-                scd.Callback.DynamicInvoke(scd.Socket, message);
-#endif
-            }
-        }
-
-        /// <summary>
-        /// Encapsulates socket connection information
-        /// </summary>
-        private class SocketConnectionData
-        {
-            public Delegate Callback;
-            public int Port;
-            public string Server;
-            public Socket Socket;
-        }
-
-        #endregion
+        protected readonly Session parent;
 
         /// <summary>
         /// A value indicating whether or not this connection is in the process of connecting
         /// </summary>
         protected bool isConnecting;
         /// <summary>
-        /// A timer that controls determining when a connection attempt has timed out
-        /// </summary>
-        private readonly Timer connectionTimeout;
-        /// <summary>
         /// A value indicating whether or not this connection is in the process of disconnecting
         /// </summary>
         protected bool isDisconnecting;
-        private ushort _flapsequencenum = 1;
         /// <summary>
-        /// The unique ID of this connection
+        /// A value indicating whether or not this connection is ready to accept data
         /// </summary>
-        protected int connectionId = -1;
-        private TimerCallback _keepalivecallback = null;
-        private Timer _keepalivetimer = null;
-        /// <summary>
-		/// The <see cref="ISession"/> that owns this connection
-        /// </summary>
-		protected ISession parentSession;
+        protected bool readyForData;
+
         /// <summary>
         /// The server to which to connect
         /// </summary>
@@ -195,35 +59,61 @@ namespace csammisrun.OscarLib.Utility
         /// The port to which to connect
         /// </summary>
         protected int port;
-        private ProcessQueue _processor = null;
         /// <summary>
-        /// A value indicating whether or not this connection is ready to accept data
+        /// Connect through ssl
         /// </summary>
-        protected bool readyForData;
-        private AsyncCallback _receivecallback = null;
+        protected bool ssl;
         /// <summary>
-        /// The <see cref="Socket"/> underlying this connection
+        /// The <see cref="StreamSocket"/> underlying this connection
         /// </summary>
-        protected Socket socket;
+        protected StreamSocket socket;
+        #endregion Protected members
+
+        #region Private members
+        /// <summary>
+        /// The unique ID of this connection assigned by the <see cref="ConnectionManager"/>
+        /// </summary>
+        private readonly int id;
+        /// <summary>
+        /// The timer controlling keepalive packets
+        /// </summary>
+        private readonly Timer keepAliveTimer;
+        /// <summary>
+        /// The timer controlling connection attempt timeouts
+        /// </summary>
+        private readonly Timer connectionTimeout;
+        /// <summary>
+        /// Do not access this variable directly; use the <see cref="FLAPSequence"/> property
+        /// </summary>
+        private ushort flapSequenceNumber = 1;
         /// <summary>
         /// The cookie to send in the connection handshaking phase
         /// </summary>
-        protected Cookie cookie;
+        private Cookie cookie;
+        /// <summary>
+        /// The <see cref="ProcessQueue"/> used to dispatch SNACs received from this connection
+        /// </summary>
+        private readonly ProcessQueue snacProcessor;
+        #endregion
 
         /// <summary>
         /// Creates a new connection
         /// </summary>
-		/// <param name="parent">The <see cref="ISession"/> that owns this connection</param>
+        /// <param name="parent">The <see cref="Session"/> that owns this connection</param>
         /// <param name="id">The connection's unique ID</param>
-		public Connection(ISession parent, int id)
+        public Connection(Session parent, int id)
         {
-            _receivecallback = new AsyncCallback(ProcessFLAP);
-            _processor = new ProcessQueue(parent);
-            _keepalivecallback = new TimerCallback(SendKeepalive);
-            _keepalivetimer = new Timer(_keepalivecallback, null, Timeout.Infinite, Timeout.Infinite);
-            connectionTimeout = new Timer(new TimerCallback(ConnectionTimedOut), null, Timeout.Infinite, Timeout.Infinite);
-            parentSession = parent;
-            connectionId = id;
+            if (parent == null)
+            {
+                throw new ArgumentNullException("parent");
+            }
+
+            this.parent = parent;
+            this.id = id;
+
+            snacProcessor = new ProcessQueue(parent);
+            keepAliveTimer = new Timer(SendKeepalive, null, Timeout.Infinite, Timeout.Infinite);
+            connectionTimeout = new Timer(ConnectionTimedOut, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         /// <summary>
@@ -238,12 +128,18 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Connects to the server and performs the initial handshaking
         /// </summary>
-        public virtual bool ConnectToServer()
+        public virtual void ConnectToServer()
         {
             StartTimeoutPeriod(30);
-            parentSession.ProxiedSocketFactory(server, port,
-                                         new ProxiedSocketFactoryResultHandler(ProxiedSocketFactoryResult));
-            return true;
+
+            ProxySocketConnector connector = new ProxySocketConnector(parent, Server, Port, Ssl);
+            connector.ConnectionFailed += delegate { DisconnectFromServer(true); };
+            connector.ConnectionComplete += delegate(object sender, EventArgs e)
+            {
+                this.socket = (sender as ProxySocketConnector).Socket;
+                OnConnectionFinished();
+            };
+            connector.BeginConnect();
         }
 
         /// <summary>
@@ -275,9 +171,12 @@ namespace csammisrun.OscarLib.Utility
 
             try
             {
-                socket.Blocking = false;
-                socket.Shutdown(SocketShutdown.Both);
-                socket.Close();
+                if (socket != null)
+                {
+                    socket.Blocking = false;
+                    socket.Shutdown(SocketShutdown.Both);
+                    socket.Close();
+                }
             }
             catch (Exception)
             {
@@ -285,9 +184,9 @@ namespace csammisrun.OscarLib.Utility
             }
             finally
             {
-                parentSession.Connections.DeregisterConnection(this, error);
+                parent.Connections.DeregisterConnection(this, error);
                 isConnecting = false;
-                _keepalivetimer.Change(Timeout.Infinite, Timeout.Infinite);
+                keepAliveTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 StopTimeoutPeriod();
             }
             return true;
@@ -316,6 +215,10 @@ namespace csammisrun.OscarLib.Utility
             return retval;
         }
 
+        /// <summary>
+        /// Sends a keepalive packet (FLAP channel 5)
+        /// </summary>
+        /// <param name="threadstate">Always <c>null</c></param>
         private void SendKeepalive(object threadstate)
         {
             using (ByteStream stream = new ByteStream())
@@ -333,21 +236,20 @@ namespace csammisrun.OscarLib.Utility
                     Marshal.InsertUshort(keepalive, (ushort) FLAPSequence, 2);
                     lock (socket)
                     {
-                        socket.Send(keepalive);
+                        socket.Write(keepalive);
                     }
-                    Logging.WriteString(String.Format("Sent keepalive over connection {0}", connectionId));
+                    Logging.WriteString("Sent keepalive over connection {0}", ID);
                 }
                 catch (Exception ex)
                 {
                     if (!isDisconnecting)
                     {
-                        string message = "Send error: " + ex.Message;
-                        Logging.WriteString(message + ", connection " + connectionId.ToString());
+                        Logging.WriteString("Couldn't send keepalive: {0}, connection {1}", ex.Message, ID);
                         DisconnectFromServer(true);
                     }
                 }
 
-                _keepalivetimer.Change(60000, Timeout.Infinite);
+                keepAliveTimer.Change(60000, Timeout.Infinite);
             }
         }
 
@@ -365,11 +267,11 @@ namespace csammisrun.OscarLib.Utility
         #region Properties
 
         /// <summary>
-		/// Gets the <see cref="ISession"/> that owns this connection object
+        /// Gets the <see cref="Session"/> that owns this connection object
         /// </summary>
-		public ISession ParentSession
+        public Session ParentSession
         {
-            get { return parentSession; }
+            get { return parent; }
         }
 
         /// <summary>
@@ -387,7 +289,7 @@ namespace csammisrun.OscarLib.Utility
                     isConnecting = value;
                     if (isConnecting == false)
                     {
-                        _keepalivetimer.Change(60000, Timeout.Infinite);
+                        keepAliveTimer.Change(60000, Timeout.Infinite);
                     }
                 }
             }
@@ -414,14 +316,14 @@ namespace csammisrun.OscarLib.Utility
                         return false;
                     }
                 }
-                catch (SocketException sockex)
-                {
-                    Logging.WriteString("Socket.Available threw SocketException: " + sockex.Message);
-                    return false;
-                }
-                catch (ObjectDisposedException odex)
+                catch(ObjectDisposedException odex)
                 {
                     Logging.WriteString("Socket.Available threw ObjectDisposedException: " + odex.Message);
+                    return false;
+                }
+                catch(Exception sockex)
+                {
+                    Logging.WriteString("Socket.Available threw SocketException: " + sockex.Message);
                     return false;
                 }
 
@@ -432,7 +334,7 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Gets a reference to the main socket used for data transfer
         /// </summary>
-        internal Socket DataSocket
+        internal StreamSocket DataSocket
         {
             get { return socket; }
         }
@@ -456,12 +358,20 @@ namespace csammisrun.OscarLib.Utility
         }
 
         /// <summary>
+        /// Gets or sets the connection type
+        /// </summary>
+        public virtual bool Ssl {
+            get { return ssl; }
+            set { ssl = value; }
+        }
+
+        /// <summary>
         /// Gets or sets the authentication cookie to send to the server
         /// </summary>
         public Cookie Cookie
         {
             get { return cookie; }
-            set { cookie = value; }
+            internal set { cookie = value; }
         }
 
         /// <summary>
@@ -479,7 +389,7 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         public int ID
         {
-            get { return connectionId; }
+            get { return id; }
         }
 
         /// <summary>
@@ -501,9 +411,9 @@ namespace csammisrun.OscarLib.Utility
             {
                 lock (this)
                 {
-                    ushort retval = _flapsequencenum++;
-                    if (_flapsequencenum == 0xFFFF)
-                        _flapsequencenum = 0;
+                    ushort retval = flapSequenceNumber++;
+                    if (flapSequenceNumber == 0xFFFF)
+                        flapSequenceNumber = 0;
                     return retval;
                 }
             }
@@ -511,9 +421,8 @@ namespace csammisrun.OscarLib.Utility
 
         private ProcessQueue Processor
         {
-            get { return _processor; }
+            get { return snacProcessor; }
         }
-        
 
         #endregion
 
@@ -529,16 +438,15 @@ namespace csammisrun.OscarLib.Utility
                 byte[] flapbuffer = new byte[6];
                 lock (socket)
                 {
-                    socket.BeginReceive(flapbuffer, 0, flapbuffer.Length, SocketFlags.None,
-                                       _receivecallback, flapbuffer);
+                    socket.BeginRead(flapbuffer, 0, flapbuffer.Length, ProcessFLAP, flapbuffer);
+                    //socket.BeginReceive(flapbuffer, 0, flapbuffer.Length, SocketFlags.None, ProcessFLAP, flapbuffer);
                 }
             }
             catch (Exception ex)
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Receive error in Connection.ReadHeader: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Receive error in Connection.ReadHeader: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                 }
             }
@@ -559,7 +467,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 lock (socket)
                 {
-                    bytesreceived = socket.EndReceive(res);
+                    bytesreceived = socket.EndRead(res);
                     if (bytesreceived == 0)
                     {
                         throw new Exception("Socket receive returned 0 bytes read");
@@ -570,10 +478,7 @@ namespace csammisrun.OscarLib.Utility
                     receiveindex = bytesreceived;
                     while (receiveindex < flapbuffer.Length)
                     {
-                        bytesreceived = socket.Receive(flapbuffer,
-                                                      receiveindex,
-                                                      flapbuffer.Length - receiveindex,
-                                                      SocketFlags.None);
+                        bytesreceived = socket.Read(flapbuffer, receiveindex, flapbuffer.Length - receiveindex);
                         if (bytesreceived == 0)
                         {
                             throw new Exception("Socket receive returned 0 bytes read");
@@ -586,8 +491,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Receive error in ProcessFLAP: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Receive error in ProcessFLAP: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                 }
                 return;
@@ -605,7 +509,7 @@ namespace csammisrun.OscarLib.Utility
                     flapbuffer[i - badcount] = flapbuffer[i];
                 }
 
-                socket.Receive(flapbuffer, flapbuffer.Length - badcount, badcount, SocketFlags.None);
+                socket.Read(flapbuffer, flapbuffer.Length - badcount, badcount);
             }
 
             // Get the FLAP header out of the async result
@@ -617,6 +521,7 @@ namespace csammisrun.OscarLib.Utility
             }
 
             // The full packet is here, so we can chuck it out for processing
+            DataPacket dp;
             switch (flap.Channel)
             {
                 case 0x01: // New connection negotiation
@@ -628,18 +533,32 @@ namespace csammisrun.OscarLib.Utility
                         break; // Don't return, don't disconnect, just keep on keeping on
                     }
 
-                    DataPacket dp = stream.CreateDataPacket();
+                    dp = stream.CreateDataPacket();
                     dp.FLAP = flap;
                     dp.ParentConnection = this;
-                    dp.ParentSession = parentSession;
-
+                    dp.ParentSession = parent;
                     Processor.Enqueue(dp);
                     break;
                 case 0x03: // FLAP error
                     // Session error:  FLAP error, bailing out
                     Logging.WriteString("Received error FLAP");
-                    break;
+                    DisconnectFromServer(true);
+                    return;
                 case 0x04: // Close connection negotiation
+                    //KSD-SYSTEMS - added at 27.11.2009
+                    if (stream.GetByteCount() > 10)
+                    {
+                        dp = stream.CreateDataPacket();
+                        if (((SNACFamily)dp.SNAC.FamilyServiceID) == SNACFamily.PrivacyManagementService)
+                        {
+                            PrivacyManagementService sub = (PrivacyManagementService)dp.SNAC.FamilySubtypeID;
+                            if (sub == PrivacyManagementService.ServiceParametersRequest)
+                            {
+                                parent.OnError(ServerErrorCode.ExternalClientRequest, dp);
+                            }
+                        }
+                    }
+
                     Logging.WriteString("Received close connection FLAP");
                     DisconnectFromServer(false);
                     return;
@@ -652,7 +571,7 @@ namespace csammisrun.OscarLib.Utility
             }
 
             // Shine on, you crazy connection
-            _keepalivetimer.Change(60000, Timeout.Infinite);
+            keepAliveTimer.Change(60000, Timeout.Infinite);
             ReadHeader();
         }
 
@@ -671,11 +590,7 @@ namespace csammisrun.OscarLib.Utility
                 {
                     while (receiveindex < packet.Length)
                     {
-                        bytesreceived = socket.Receive(
-                            packet,
-                            receiveindex,
-                            packet.Length - receiveindex,
-                            SocketFlags.None);
+                        bytesreceived = socket.Read(packet, receiveindex, packet.Length - receiveindex);
                         if (bytesreceived == 0)
                         {
                             throw new Exception("Socket receive returned 0 bytes read");
@@ -688,8 +603,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Receive error in ReadPacket: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Receive error in ReadPacket: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                     return null;
                 }
@@ -710,17 +624,16 @@ namespace csammisrun.OscarLib.Utility
             {
                 lock (socket)
                 {
-                    Logging.WriteString(String.Format("Starting ReadPacketAsync datalength = {0}", datalength));
-                    socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(EndReadPacketAsync),
-                                       buffer);
+                    Logging.WriteString("Starting ReadPacketAsync datalength = {0}");
+                    socket.BeginRead(buffer, 0, buffer.Length, new AsyncCallback(EndReadPacketAsync), buffer);
+                    //socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(EndReadPacketAsync), buffer);
                 }
             }
             catch (Exception ex)
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Receive error in ReadPacketAsync: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Receive error in ReadPacketAsync: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                 }
             }
@@ -735,7 +648,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 lock (socket)
                 {
-                    bytesreceived = socket.EndReceive(res);
+                    bytesreceived = socket.EndRead(res);
                     if (bytesreceived == 0)
                     {
                         throw new Exception("Socket receive returned 0 bytes read");
@@ -747,7 +660,7 @@ namespace csammisrun.OscarLib.Utility
                     while (receiveindex < buffer.Length)
                     {
                         bytesreceived =
-                            socket.Receive(buffer, receiveindex, buffer.Length - receiveindex, SocketFlags.None);
+                            socket.Read(buffer, receiveindex, buffer.Length - receiveindex);
                         if (bytesreceived == 0)
                         {
                             throw new Exception("Socket receive returned 0 bytes read");
@@ -765,8 +678,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Receive error in EndReadPacketAsync: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Receive error in EndReadPacketAsync: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                 }
             }
@@ -788,14 +700,14 @@ namespace csammisrun.OscarLib.Utility
                     Marshal.InsertUshort(buffer, FLAPSequence, 2);
                     while (sendindex < buffer.Length)
                     {
-                        sentbytes = socket.Send(buffer, sendindex, buffer.Length - sendindex, SocketFlags.None);
+                        sentbytes = socket.Write(buffer, sendindex, buffer.Length - sendindex);
                         if (sentbytes == 0)
                         {
                             throw new Exception("Socket send returned 0 bytes transmitted");
                         }
                         sendindex += sentbytes;
                     }
-                    _keepalivetimer.Change(60000, Timeout.Infinite);
+                    keepAliveTimer.Change(60000, Timeout.Infinite);
 
                     if (buffer[1] == 0x02 && Logging.IsLoggingEnabled)
                     {
@@ -810,8 +722,7 @@ namespace csammisrun.OscarLib.Utility
             {
                 if (!isDisconnecting)
                 {
-                    string message = "Send error: " + ex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Send error: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                 }
             }
@@ -842,7 +753,8 @@ namespace csammisrun.OscarLib.Utility
             {
                 lock (socket)
                 {
-                    socket.BeginSend(buffer, offset, length, SocketFlags.None, callback, this);
+                    socket.BeginWrite(buffer, offset, length, callback, this);
+                    //socket.BeginSend(buffer, offset, length, SocketFlags.None, callback, this);
                 }
             }
         }
@@ -854,7 +766,8 @@ namespace csammisrun.OscarLib.Utility
         {
             if (readyForData)
             {
-                socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, callback, buffer);
+                socket.BeginRead(buffer, 0, buffer.Length, callback, buffer);
+                //socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, callback, buffer);
             }
         }
 
@@ -865,21 +778,17 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// 30 seconds have elapsed since the connection attempt started
         /// </summary>
-        public virtual void ConnectionTimedOut(object data)
+        protected virtual void ConnectionTimedOut(object data)
         {
+            Logging.WriteString(String.Format("Connection {0} has timed out", ID));
             DisconnectFromServer(true);
         }
 
-        private void ProxiedSocketFactoryResult(Socket sock, string errormsg)
+        /// <summary>
+        /// This method is invoked when the connection is complete
+        /// </summary>
+        protected virtual void OnConnectionFinished()
         {
-            if (!String.IsNullOrEmpty(errormsg))
-            {
-                Logging.WriteString(errormsg + ", connection " + connectionId.ToString());
-                DisconnectFromServer(true);
-                return;
-            }
-
-            socket = sock;
             Connecting = true;
 
             // Read in the first ten bytes (6 byte FLAP channel 0x01 + 0x00000001)
@@ -893,17 +802,14 @@ namespace csammisrun.OscarLib.Utility
                 {
                     while (bytesreceived < 10)
                     {
-                        bytesreceived =
-                            socket.Receive(serverhandshake, receiveindex, 10 - receiveindex, SocketFlags.None);
+                        bytesreceived = socket.Read(serverhandshake, receiveindex, 10 - receiveindex);
                         receiveindex += bytesreceived;
                     }
                 }
             }
-            catch (SocketException sockex)
+            catch (Exception ex)
             {
-                string message = "Can't read handshake from server: "
-                                 + Environ.NewLine + sockex.Message;
-                Logging.WriteString(message + ", connection " + connectionId.ToString());
+                Logging.WriteString("Can't read handshake from server: {0}, connection {1}", ex.Message, ID);
                 DisconnectFromServer(true);
                 return;
             }
@@ -933,22 +839,12 @@ namespace csammisrun.OscarLib.Utility
                 {
                     lock (socket)
                     {
-                        socket.Send(clientHandshake.GetBytes());
+                        socket.Write(clientHandshake.GetBytes());
                     }
                 }
-                catch (SocketException sockex)
+                catch (Exception ex)
                 {
-                    string message = "Couldn't send handshake to server:"
-                                     + Environ.NewLine + sockex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
-                    DisconnectFromServer(true);
-                    return;
-                }
-                catch (ObjectDisposedException odex)
-                {
-                    string message = "Couldn't send handshake to server:"
-                                     + Environ.NewLine + odex.Message;
-                    Logging.WriteString(message + ", connection " + connectionId.ToString());
+                    Logging.WriteString("Couldn't send handshake to server: {0}, connection {1}", ex.Message, ID);
                     DisconnectFromServer(true);
                     return;
                 }
@@ -962,6 +858,32 @@ namespace csammisrun.OscarLib.Utility
             OnServerConnectionCompleted();
         }
 
-        #endregion
+        #endregion Initial connection async callbacks
+    }
+
+    /// <summary>
+    /// The supported proxy types
+    /// </summary>
+    public enum ProxyType
+    {
+        /// <summary>
+        /// Non-proxied connection
+        /// </summary>
+        None,
+        /// <summary>
+        /// Connection through a SOCKS5-type proxy
+        /// </summary>
+        Socks5,
+    }
+
+    /// <summary>
+    /// Describes the valid SOCKS5 authentication methods
+    /// </summary>
+    enum Socks5AuthType : byte
+    {
+        None = 0x00,
+        GssApi = 0x01,
+        UsernamePassword = 0x02,
+        AuthMethodRejected = 0xFF
     }
 }

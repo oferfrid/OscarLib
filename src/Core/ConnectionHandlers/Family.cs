@@ -12,7 +12,7 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// Encapsulates a description of a single SNAC family
     /// </summary>
-    public class Family
+    internal class Family
     {
         private string _description;
         private ushort _ID;

@@ -177,6 +177,30 @@ namespace csammisrun.OscarLib.Utility
         }
 
         /// <summary>
+        /// Defines a segment for a int value
+        /// </summary>
+        private class IntSegment : ISegment
+        {
+            private int value;
+
+            public IntSegment(int value)
+            {
+                this.value = value;
+            }
+
+            #region ISegment Members
+
+            public byte[] GetBytes()
+            {
+                byte[] retval = System.BitConverter.GetBytes(value);
+                Array.Reverse(retval);
+                return retval;
+            }
+
+            #endregion
+        }
+
+        /// <summary>
         /// Defines a segment for a string value
         /// </summary>
         private class StringSegment : ISegment
@@ -419,11 +443,7 @@ namespace csammisrun.OscarLib.Utility
                 throw new Exception("A DataPacket can only be created from an unused ByteStream");
             }
 
-            SNACHeader header = new SNACHeader();
-            header.FamilyServiceID = ReadUshort();
-            header.FamilySubtypeID = ReadUshort();
-            header.Flags = ReadUshort();
-            header.RequestID = ReadUint();
+            SNACHeader header = new SNACHeader(this);
 
             if ((header.Flags & 0x8000) != 0)
             {
@@ -560,7 +580,7 @@ namespace csammisrun.OscarLib.Utility
                 throw new ByteStreamReadException(dataBuffer.Length, dataIndex, length);
             }
 
-            string retval = encoding.GetString(dataBuffer, dataIndex, length);
+            string retval = encoding.GetString(dataBuffer, dataIndex, length).Trim(new char[] { ' ', '\0', '\r', '\n' });
             dataIndex += length;
             return retval;
         }
@@ -616,8 +636,7 @@ namespace csammisrun.OscarLib.Utility
                 retval.ICQUserStatus = tlvBlock.ReadUint(0x0006);
                 retval.ExternalIPAddress = tlvBlock.ReadUint(0x000A);
                 // Read the DC info from 0x000C
-                retval.ClientCapabilities = CapabilityProcessor.ProcessCLSIDList(
-                    tlvBlock.ReadByteArray(0x000D));
+                retval.ClientCapabilities = CapabilityProcessor.ProcessCLSIDList(tlvBlock.ReadByteArray(0x000D));
                 retval.OnlineTime = tlvBlock.ReadUint(0x000F);
                 if (tlvBlock.HasTlv(0x001D))
                 {
@@ -771,6 +790,21 @@ namespace csammisrun.OscarLib.Utility
             TlvBlock retval = new TlvBlock(dataBuffer, dataIndex, tlvBlockLength);
             dataIndex += tlvBlockLength;
             return retval;
+        }
+
+        /// <summary>
+        /// Reads an <see cref="SNACHeader"/> from the stream
+        /// </summary>
+        /// <returns>A populated <see cref="SNACHeader"/></returns>
+        public SNACHeader ReadSnacHeader()
+        {
+            if (dataIndex + 10 > dataBuffer.Length)
+            {
+                throw new ByteStreamReadException(dataBuffer.Length, dataIndex, 10);
+            }
+
+            SNACHeader sh = new SNACHeader(ReadUshort(), ReadUshort(), ReadUshort(), ReadUint());
+            return sh;
         }
 
         /// <summary>
@@ -937,13 +971,25 @@ namespace csammisrun.OscarLib.Utility
         }
 
         /// <summary>
-        /// Writes a 32-bit integer into the stream
+        /// Writes a 32-bit unsigned integer into the stream
         /// </summary>
         public void WriteUint(uint value)
         {
             lock (this)
             {
                 dataSegments.Add(new UintSegment(value));
+                byteCount += 4;
+            }
+        }
+
+        /// <summary>
+        /// Writes a 32-bit integer into the stream
+        /// </summary>
+        public void WriteInt(int value)
+        {
+            lock (this)
+            {
+                dataSegments.Add(new IntSegment(value));
                 byteCount += 4;
             }
         }
@@ -982,6 +1028,21 @@ namespace csammisrun.OscarLib.Utility
             {
                 dataSegments.Add(new TlvBlockSegment(value));
                 byteCount += value.GetByteCount();
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="SNACHeader"/> into the stream
+        /// </summary>
+        public void WriteSnacHeader(SNACHeader value)
+        {
+            lock (this)
+            {
+                dataSegments.Add(new UshortSegment(value.FamilyServiceID));
+                dataSegments.Add(new UshortSegment(value.FamilySubtypeID));
+                dataSegments.Add(new UshortSegment(value.Flags));
+                dataSegments.Add(new UintSegment(value.RequestID));
+                byteCount += 10;
             }
         }
 
@@ -1086,7 +1147,7 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Gets the number of bytes remaining to be read
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The byte count, if no data exists -1</returns>
         public int GetRemainingByteCount()
         {
             if (dataBuffer != null)
@@ -1094,6 +1155,14 @@ namespace csammisrun.OscarLib.Utility
                 return dataBuffer.Length - CurrentPosition;
             }
             return -1;
+        }
+
+        /// <summary>
+        /// Gets the number of bytes remaining to be read, equals <see cref="GetRemainingByteCount"/>
+        /// </summary>
+        public int RemainingBytes
+        {
+            get { return GetRemainingByteCount(); }
         }
 
         /// <summary>

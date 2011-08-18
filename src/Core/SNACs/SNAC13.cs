@@ -12,14 +12,13 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Sends a request for parameter information -- SNAC(13,02)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void RequestParametersList(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void RequestParametersList(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.ServiceParametersRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }
@@ -54,14 +53,13 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Sends a request for the original SSI contact list -- SNAC(13,04)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void RequestInitialContactList(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void RequestInitialContactList(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.ContactListInitialRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }
@@ -112,18 +110,17 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Requests that the server activate the client's SSI information -- SNAC(13,07)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <remarks>
         /// Sending this SNAC will cause the server to begin broadcasting online notifications
         /// to the contacts on the client's buddy list.
         /// </remarks>
-		public static void ActivateSSI(ISession sess)
+        public static void ActivateSSI(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.LoadContactList;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }
@@ -131,15 +128,14 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Adds a series of SSI items to the server-side list -- SNAC(13,08)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="items">An array of <see cref="SSIItem"/> objects</param>
-		public static void AddSSIItems(ISession sess, SSIItem[] items)
+        public static void AddSSIItems(Session sess, SSIItem[] items)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.SSIEditAddItems;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
 
@@ -165,15 +161,14 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Modifies a series of SSI items on the server-side list -- SNAC(13,09)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="items">An array of <see cref="SSIItem"/> objects</param>
-		public static void ModifySSIItems(ISession sess, SSIItem[] items)
+        public static void ModifySSIItems(Session sess, SSIItem[] items)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.SSIEditUpdateGroupHeader;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteSSIItems(items);
@@ -212,19 +207,37 @@ namespace csammisrun.OscarLib.Utility
         /// </summary>
         /// <param name="sess"></param>
         /// <param name="items">An array of <see cref="SSIItem"/> objects</param>
-		public static void RemoveSSIItems(ISession sess, SSIItem[] items)
+        public static void RemoveSSIItems(Session sess, SSIItem[] items)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.SSIEditRemoveItem;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteSSIItems(items);
             sess.SSI.OutstandingRequests++;
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, stream));
         }
+
+        /// <summary>
+        /// Delete yourself from another client server-side contact list.
+        /// </summary>
+        /// <param name="sess"></param>
+        /// <param name="screenname">The contacts icq-number.</param>
+        public static void RemoveMySSIItem(Session sess, string screenname)
+        {
+            SNACHeader sh = new SNACHeader();
+            sh.FamilyServiceID = (ushort)SNACFamily.SSIService;
+            sh.FamilySubtypeID = (ushort)SSIService.RemoveSelfFromContact;
+
+
+            ByteStream stream = new ByteStream();
+            stream.WriteByte((byte)screenname.Length);
+            stream.WriteString(screenname, Encoding.ASCII);
+            SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, stream));
+        }
+
 
         /// <summary>
         /// Processes the response codes from an SSI update -- SNAC(13,0E)
@@ -257,7 +270,7 @@ namespace csammisrun.OscarLib.Utility
                             break;
                     }
 
-                    dp.ParentSession.OnWarning(sec);
+                    dp.ParentSession.OnWarning(sec, dp);
                 }
             }
 
@@ -283,14 +296,13 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Starts an SSI modification transaction -- SNAC(13,11)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void SendEditStart(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void SendEditStart(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.ContactsEditStart;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }
@@ -298,15 +310,13 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Finishes an SSI modification transaction -- SNAC(13,12)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-		public static void SendEditComplete(ISession sess)
+        /// <param name="sess">A <see cref="Session"/> object</param>
+        public static void SendEditComplete(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.ContactsEditEnd;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
-
+            
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, new ByteStream()));
         }
 
@@ -320,7 +330,10 @@ namespace csammisrun.OscarLib.Utility
         /// </remarks>
         public static void ProcessAddedMessage(DataPacket dp)
         {
-            dp.ParentSession.ICQ.ProcessIncomingPacket(dp);
+            int length = dp.Data.ReadByte();
+            String uin = dp.Data.ReadString(length, Encoding.ASCII);
+
+            dp.ParentSession.OnAddedToRemoteList(uin);
         }
 
         /// <summary>
@@ -329,13 +342,12 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="sess">the session object</param>
         /// <param name="screenname">the destination screenname</param>
         /// <param name="reason">the reason for the authorization request</param>
-		public static void SendAuthorizationRequest(ISession sess, string screenname, string reason)
+        public static void SendAuthorizationRequest(Session sess, string screenname, string reason)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort)SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort)SSIService.SendAuthorizationRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
 
@@ -359,7 +371,7 @@ namespace csammisrun.OscarLib.Utility
             string screenname = dp.Data.ReadString(dp.Data.ReadByte(), Encoding.ASCII);
             string reason = null;
 
-            reason = dp.Data.ReadString(dp.Data.ReadUshort(), Session.CurrentSession.Encoding);
+            reason = dp.Data.ReadString(dp.Data.ReadUshort(), dp.ParentSession.Encoding);
 
             dp.ParentSession.OnAuthorizationRequestReceived(screenname, reason);
         }
@@ -371,14 +383,13 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="screenname">the destination screenname</param>
         /// <param name="grantAuthorization">Determines if the authorization is granted</param>
         /// <param name="reason">The reason for this decision</param>
-		public static void SendAuthorizationResponse(ISession sess, string screenname, bool grantAuthorization,
+        public static void SendAuthorizationResponse(Session sess, string screenname, bool grantAuthorization,
                                                      string reason)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.SendAuthorizationResponse;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
 
@@ -401,7 +412,7 @@ namespace csammisrun.OscarLib.Utility
         {
             string screenname = dp.Data.ReadString(dp.Data.ReadByte(), Encoding.ASCII);
             bool authorized = Convert.ToBoolean(dp.Data.ReadByte());
-            string reason = dp.Data.ReadString(dp.Data.ReadUshort(), Session.CurrentSession.Encoding);
+            string reason = dp.Data.ReadString(dp.Data.ReadUshort(), dp.ParentSession.Encoding);
 
             dp.ParentSession.OnAuthorizationResponseReceived(screenname, authorized, reason);
         }
@@ -412,13 +423,12 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="sess">the session object</param>
         /// <param name="screenname">the destination screenname</param>
         /// <param name="reason">the reason for the future authorization</param>
-		public static void SendFutureAuthorizationGrant(ISession sess, string screenname, string reason)
+        public static void SendFutureAuthorizationGrant(Session sess, string screenname, string reason)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.SendFutureAuthorizationGrant;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
 
@@ -440,9 +450,10 @@ namespace csammisrun.OscarLib.Utility
         public static void ProcessFutureAuthorizationGrant(DataPacket dp)
         {
             string screenname = dp.Data.ReadString(dp.Data.ReadByte(), Encoding.ASCII);
-            string reason = dp.Data.ReadString(dp.Data.ReadUshort(), Session.CurrentSession.Encoding);
+            string reason = dp.Data.ReadString(dp.Data.ReadUshort(), dp.ParentSession.Encoding);
 
-            dp.ParentSession.OnAuthorizationRequestReceived(screenname, reason);
+            //KSD-SYSTEMS - changed at 24.02.2010 -> from OnAuthorizationRequestReceived
+            dp.ParentSession.OnFutureAuthorizationReceived(screenname, reason);
         }
 
         /// <summary>
@@ -452,14 +463,13 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="modificationDate">the last client side modification date</param>
         /// <param name="isLocalTime">Determines if the given modification time is in the local or universal time format</param>
         /// <param name="itemCount">the total item count at the client side</param>
-		public static void SendContactListCheckout(ISession sess, DateTime modificationDate, bool isLocalTime,
+        public static void SendContactListCheckout(Session sess, DateTime modificationDate, bool isLocalTime,
                                                    ushort itemCount)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.SSIService;
             sh.FamilySubtypeID = (ushort) SSIService.ContactListCheckout;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
             uint modDateValue = ByteStream.ConvertDateTimeToUint(modificationDate, isLocalTime);

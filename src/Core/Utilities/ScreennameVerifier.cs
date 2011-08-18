@@ -12,7 +12,7 @@ namespace csammisrun.OscarLib.Utility
     /// <summary>
     /// Contains utility methods to verify the correctness of a screenname
     /// </summary>
-    internal static class ScreennameVerifier
+    public static class ScreennameVerifier
     {
         /// <summary>
         /// Verifies if a screenname is a valid AIM network name
@@ -23,8 +23,7 @@ namespace csammisrun.OscarLib.Utility
         {
             foreach (char c in screenname)
             {
-                if (!(IsAlpha(c) || IsNumeric(c)) &&
-                    c != ' ' && c != '.' && c != '@' && c != '-' && c != '_')
+                if (!(IsAlpha(c) || IsNumeric(c)) && c != ' ' && c != '.' && c != '@' && c != '-' && c != '_')
                 {
                     return false;
                 }

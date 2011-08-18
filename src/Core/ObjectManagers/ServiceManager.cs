@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using csammisrun.OscarLib.Utility;
+using System.Net;
 
 namespace csammisrun.OscarLib
 {
@@ -61,7 +62,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// BOS code for information about a rate class update
         /// </summary>
-        private const int BOS_RATE_CHANGE_NOTIFICATION = 0x001A;
+        private const int BOS_RATE_CHANGE_NOTIFICATION = 0x000A;
         /// <summary>
         /// BOS code for initiating a server migration sequence
         /// </summary>
@@ -123,15 +124,18 @@ namespace csammisrun.OscarLib
         private const int EXTSTATUS_ICON2 = 0x0001;
         #endregion
 
-		private readonly ISession parent;
+        private readonly Session parent;
+        internal readonly int AuthCookie;
 
         /// <summary>
         /// Initializes a new ServiceManager
         /// </summary>
-		internal ServiceManager(ISession parent)
+        internal ServiceManager(Session parent)
         {
             this.parent = parent;
             parent.Dispatcher.RegisterSnacFamilyHandler(this, SNAC_BOS_FAMILY);
+
+            this.AuthCookie = (new Random()).Next(int.MinValue, int.MaxValue);
         }
 
         #region Public methods
@@ -144,8 +148,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_REQUEST_NEW_SERVICE;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteUshort(newfamily);
@@ -183,8 +187,7 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_FAMILY_VERSION_REQUEST;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             DataPacket dp = Marshal.BuildDataPacket(parent, sh, stream);
             dp.ParentConnection = connection; // Always send this on the same connection it was received
@@ -192,15 +195,14 @@ namespace csammisrun.OscarLib
         }
 
         /// <summary>
-        /// Requests the client's own online information -- SNAC(01,0E)
+        /// Requests the client's own online information
         /// </summary>
         public void RequestOnlineInformation()
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_REQUEST_OWN_INFORMATION;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
 
             DataPacket dp = Marshal.BuildDataPacket(parent, sh, new ByteStream());
@@ -222,8 +224,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_CONNECTION_READY;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ushort[] families = parent.Connections.GetFamilies(conn);
             FamilyManager fm = parent.Families;
@@ -264,8 +266,9 @@ namespace csammisrun.OscarLib
             */
             if (!parent.LoggedIn)
             {
-                SetExtendedStatus(parent.AvailableMessage, ICQFlags.Normal, ICQStatus.Online);
-                SetExtendedStatus(null, ICQFlags.Normal, ICQStatus.Online);
+                SetAvailableMessage(parent.Statuses.AvailableMessage);
+                SetDCInfo();
+                SetExtendedICQStatus(parent.Statuses.ICQFlags, parent.Statuses.ICQStatus);
             }
 
             // The connection is done, so start sending keepalives
@@ -308,27 +311,6 @@ namespace csammisrun.OscarLib
         }
 
         /// <summary>
-        /// Sets the client's "Available" message -- SNAC(01,1E)
-        /// </summary>
-        /// <param name="availablemessage">The available message to set</param>
-        /// <remarks>TODO:  This probably belongs in the status manager</remarks>
-        public void SetAvailableMessage(string availablemessage)
-        {
-            SetExtendedStatus(availablemessage, ICQFlags.Normal, ICQStatus.Online);
-        }
-
-        /// <summary>
-        /// Sets the client's ICQ status -- SNAC(01,1E)
-        /// </summary>
-        /// <param name="flags">The ICQ flags to set</param>
-        /// <param name="status">The ICQ status flags to set</param>
-        /// <remarks>TODO:  This probably belongs in the status manager</remarks>
-        public void SetExtendedICQStatus(ICQFlags flags, ICQStatus status)
-        {
-            SetExtendedStatus(null, flags, status);
-        }
-
-        /// <summary>
         /// Sends a response to a client verification request -- SNAC(01,20)
         /// </summary>
         /// <remarks>
@@ -345,8 +327,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_CLIENT_VERIFICATION_RESPONSE;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteUint(0x44a95d26);
@@ -362,7 +344,7 @@ namespace csammisrun.OscarLib
 
         #region ISnacFamilyHandler Members
         /// <summary>
-        /// Process an incoming <see cref="DataPacket"/> from SNAC family 1
+        /// Process an incoming <see cref="DataPacket"/> from SNAC family 0x0001
         /// </summary>
         /// <param name="dp">A <see cref="DataPacket"/> received by the server</param>
         public void ProcessIncomingPacket(csammisrun.OscarLib.Utility.DataPacket dp)
@@ -422,6 +404,10 @@ namespace csammisrun.OscarLib
             {
                 parent.Graphics.OwnBuddyIcon = ui.Icon;
             }
+            IPAddress ipAddress = null;
+            if (parent.Connections.LocalExternalIP == null)
+                if (IPAddress.TryParse(ui.ExternalIPAddress.ToString(), out ipAddress))
+                    parent.Connections.LocalExternalIP = ipAddress;
         }
 
         /// <summary>
@@ -486,7 +472,7 @@ namespace csammisrun.OscarLib
                 }
                 else
                 {
-                    port = dp.ParentSession.LoginPort;
+                    port = dp.ParentSession.ServerSettings.LoginPort;
                 }
 
                 newconn.ServerConnectionCompleted += delegate { newconn.ReadHeader(); };
@@ -510,8 +496,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_RATE_LIMIT_REQUST;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             DataPacket dp2 = Marshal.BuildDataPacket(parent, sh, new ByteStream());
             dp2.ParentConnection = dp.ParentConnection;
@@ -546,7 +532,7 @@ namespace csammisrun.OscarLib
                 if (parent.Families.GetFamilyVersion(0x0001) >= 3)
                 {
                     rc.LastTime = dp.Data.ReadUint();
-                    rc.CurrentState = dp.Data.ReadByte();
+                    rc.IsDroppingSNACs = dp.Data.ReadByte() != 0;
                 }
                 rcm.SetByID(id, rc);
                 rc.StartLimitedTransmission();
@@ -564,6 +550,21 @@ namespace csammisrun.OscarLib
                 {
                     ushort family = dp.Data.ReadUshort();
                     ushort subtype = dp.Data.ReadUshort();
+                    if (family == 0x04)
+                    {
+                        if (id == 1)
+                        {
+                            Console.WriteLine("** SNAC 4 handled by RC " + id);
+                        }
+                        else
+                        {
+                            Console.WriteLine("SNAC 4-{0} handled by RC " + id, subtype);
+                        }
+                    }
+                    else if (family == 0x02 && subtype == 0x05)
+                    {
+                        Console.WriteLine("** 02,05 handled by RC " + id);
+                    }
                     rcm.SetRateClassKey(family, subtype, id);
                 }
             }
@@ -572,8 +573,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_ACKNOWLEDGE_RATE_LIMITS;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             for (int i = 0; i < classes.Length; i++)
@@ -617,6 +618,37 @@ namespace csammisrun.OscarLib
         /// <param name="dp">A <see cref="DataPacket"/> object with a buffer containing SNAC(01,0A)</param>
         private void ProcessRateChange(DataPacket dp)
         {
+            ushort rateCode = dp.Data.ReadUshort();
+            while (dp.Data.HasMoreData)
+            {
+                ushort classID = dp.Data.ReadUshort();
+
+                RateClass targetClass = parent.RateClasses.GetByID(classID);
+                switch (rateCode)
+                {
+                    case 1:
+                        break;
+                    case 2:
+                        targetClass.State = RateClassState.Warning;
+                        break;
+                    case 3:
+                        targetClass.State = RateClassState.Limited;
+                        break;
+                    case 4:
+                        targetClass.State = RateClassState.Normal;
+                        break;
+                }
+                targetClass.WindowSize = dp.Data.ReadUint();
+                targetClass.ClearLevel = dp.Data.ReadUint();
+                targetClass.AlertLevel = dp.Data.ReadUint();
+                targetClass.LimitLevel = dp.Data.ReadUint();
+                targetClass.DisconnectLevel = dp.Data.ReadUint();
+                targetClass.CurrentLevel = dp.Data.ReadUint();
+                targetClass.MaxLevel = dp.Data.ReadUint();
+                targetClass.LastTime = dp.Data.ReadUint();
+                targetClass.IsDroppingSNACs = dp.Data.ReadByte() != 0;
+                parent.RateClasses.SetByID(classID, targetClass);
+            }
         }  
 
         /// <summary>
@@ -629,8 +661,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_BOS_FAMILY;
             sh.FamilySubtypeID = BOS_PAUSE_CONNECTION_RESPONSE;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             DataPacket dp2 = Marshal.BuildDataPacket(parent, sh, new ByteStream());
             dp2.ParentConnection = dp.ParentConnection;
@@ -652,8 +684,14 @@ namespace csammisrun.OscarLib
         /// <param name="dp">A <see cref="DataPacket"/> object with a buffer containing SNAC(01,12)</param>
         private void ProcessMigrationNotice(DataPacket dp)
         {
+            //KSD-SYSTEMS - changed at 26.05.2011
             // Process migration
-            dp.ParentSession.OnError(ServerErrorCode.OscarLibUnsupportedFunction);
+            //dp.ParentSession.OnError(ServerErrorCode.OscarLibUnsupportedFunction);
+
+            dp.ParentSession.OnStatusUpdate("Server-Address changed");
+
+            dp.ParentSession.OnLoginStatusUpdate("Connecting to server", 0.00);
+            parent.Authorization.ProcessLoginResponse(dp);
         }
 
         /// <summary>
@@ -691,39 +729,81 @@ namespace csammisrun.OscarLib
 
         #region Helper methods
         /// <summary>
-        /// Sets the client's extended status -- SNAC(01,1E)
+        /// Sets the client's ICQ status -- SNAC(01,1E)
+        /// </summary>
+        /// <param name="flags">The ICQ flags to set</param>
+        /// <param name="status">The ICQ status flags to set</param>
+        internal void SetExtendedICQStatus(ICQFlags flags, ICQStatus status)
+        {
+            SNACHeader sh = new SNACHeader(SNAC_BOS_FAMILY, BOS_SET_EXTENDED_STATUS);
+
+            ByteStream stream = new ByteStream();
+            uint stat = (uint)((ushort)flags << 16);
+            stat |= (ushort)status;
+            stream.WriteUint(0x00060004);
+            stream.WriteUint(stat);
+
+            DataPacket dp = Marshal.BuildDataPacket(parent, sh, stream);
+            dp.ParentConnection = parent.Connections.BOSConnection;
+            SNACFunctions.BuildFLAP(dp);
+        }
+
+        /// <summary>
+        /// Sets the client's DC info -- SNAC(01,1E)
+        /// </summary>
+        /// <remarks>see <see cref="UserDCInfo"/> for contact info</remarks>
+        internal void SetDCInfo()
+        {
+            SNACHeader sh = new SNACHeader(SNAC_BOS_FAMILY, BOS_SET_EXTENDED_STATUS);
+            ByteStream stream = new ByteStream();
+
+            // Header
+            stream.WriteUshort(0x000c);
+            stream.WriteUshort(0x0025);
+
+            // Values from Icq 6.5 & 7 dumping
+            // Miranda use other Values (see CIcqProto::handleServUINSettings)
+            stream.WriteUint(0);                                // IP
+            stream.WriteUint(0);                                // Port
+            stream.WriteByte((byte)DCType.Disabled);            // DC type
+            stream.WriteUshort((ushort)DCProtocol.IcqLite);     // DC protocol version
+
+            stream.WriteInt(AuthCookie);                        // DC auth cookie
+
+            stream.WriteUint(0);                                // Web front port
+            stream.WriteUint(0);                                // Client futures
+            stream.WriteUint(0);                                // last info update time
+            stream.WriteUint(0);                                // last ext info update time (i.e. icqphone status)
+            stream.WriteUint(0);                                // last ext status update time (i.e. phonebook)
+            stream.WriteUshort(0);                              // unknown
+
+            DataPacket dp = Marshal.BuildDataPacket(parent, sh, stream);
+            dp.ParentConnection = parent.Connections.BOSConnection;
+            SNACFunctions.BuildFLAP(dp);
+        }
+
+        /// <summary>
+        /// Sets the client's available message -- SNAC(01,1E)
         /// </summary>
         /// <param name="availablemessage">The available message to set</param>
-        /// <param name="flags">The ICQ flags to set</param>
-        /// <param name="status">The ICQ status to set</param>
-        /// <remarks>Either the available message or the flags/status can be set in one call to SetExtendedStatus</remarks>
-        private void SetExtendedStatus(string availablemessage, ICQFlags flags, ICQStatus status)
+        internal void SetAvailableMessage(string availablemessage)
         {
+            SNACHeader sh = new SNACHeader(SNAC_BOS_FAMILY, BOS_SET_EXTENDED_STATUS);
+
             ByteStream stream = new ByteStream();
-            if (availablemessage != null)
+            if (String.IsNullOrEmpty(availablemessage))
             {
-                stream.WriteUshort(0x001D);
-                stream.WriteUshort((ushort)(availablemessage.Length + 8));
-                stream.WriteUshort(0x0002);
-                stream.WriteByte(0x04);
-                stream.WriteByte((byte)(Encoding.ASCII.GetByteCount(availablemessage) + 4));
-                stream.WriteUshort((ushort)Encoding.ASCII.GetByteCount(availablemessage));
-                stream.WriteString(availablemessage, Encoding.ASCII);
-                stream.WriteUshort(0x0000);
-            }
-            else
-            {
-                uint stat = (uint)((ushort)flags << 16);
-                stat |= (ushort)status;
-                stream.WriteUint(0x00060004);
-                stream.WriteUint(stat);
+                availablemessage = String.Empty;
             }
 
-            SNACHeader sh = new SNACHeader();
-            sh.FamilyServiceID = SNAC_BOS_FAMILY;
-            sh.FamilySubtypeID = BOS_SET_EXTENDED_STATUS;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            stream.WriteUshort(0x001D);
+            stream.WriteUshort((ushort)(availablemessage.Length + 8));
+            stream.WriteUshort(0x0002);
+            stream.WriteByte(0x04);
+            stream.WriteByte((byte)(Encoding.ASCII.GetByteCount(availablemessage) + 4));
+            stream.WriteUshort((ushort)Encoding.ASCII.GetByteCount(availablemessage));
+            stream.WriteString(availablemessage, Encoding.ASCII);
+            stream.WriteUshort(0x0000);
 
             DataPacket dp = Marshal.BuildDataPacket(parent, sh, stream);
             dp.ParentConnection = parent.Connections.BOSConnection;

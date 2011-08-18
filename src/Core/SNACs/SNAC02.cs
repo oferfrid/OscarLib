@@ -22,39 +22,12 @@ namespace csammisrun.OscarLib.Utility
         private const int INTERESTS_INTEREST = 0x000B;
         private const int PARAMETER_MAXCAPABILITIES = 0x0002;
         private const int PARAMETER_PROFILELENGTH = 0x0001;
-        private const int STATUS_AWAYMSG = 0x0004;
-        private const int STATUS_AWAYMSG_ENCODING = 0x0003;
-        private const int STATUS_CAPABILITIES = 0x0005;
-        private const int STATUS_PROFILE = 0x0002;
-        private const int STATUS_PROFILE_ENCODING = 0x0001;
 
-        /// <summary>
-        /// Requests user information from the server, one block at a time -- SNAC(02,05)
-        /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-        /// <param name="screenname">The screenname to get information about</param>
-        /// <param name="requesttype">The type of information to retrieve</param>
-		public static void RequestBasicUserInfo(ISession sess, string screenname, BasicUserInfoRequest requesttype)
-        {
-            // Build SNAC(02,05)
-            SNACHeader sh = new SNACHeader();
-            sh.FamilyServiceID = (ushort) SNACFamily.LocationService;
-            sh.FamilySubtypeID = (ushort) LocationServices.BasicInformationRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
-
-            ByteStream stream = new ByteStream();
-            stream.WriteUshort((ushort) requesttype);
-            stream.WriteByte((byte) Encoding.ASCII.GetByteCount(screenname));
-            stream.WriteString(screenname, Encoding.ASCII);
-
-            SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, stream));
-        }
 
         /// <summary>
         /// Sets the user's directory information -- SNAC(02,09)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="allow"><c>true</c> if other users may search this information, <c>false</c> if not</param>
         /// <param name="firstname">A first name</param>
         /// <param name="middlename">A middle name</param>
@@ -67,15 +40,15 @@ namespace csammisrun.OscarLib.Utility
         /// <param name="zip">A ZIP code</param>
         /// <param name="address">An address</param>
         public static void SetDirectoryInformation(
-			ISession sess, bool allow,
+            Session sess, bool allow,
             string firstname, string middlename, string lastname, string maidenname, string nickname,
             string city, string state, string country, string zip, string address)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.LocationService;
             sh.FamilySubtypeID = (ushort) LocationServices.UpdateDirectoryInfoRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())
@@ -110,18 +83,18 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Registers the user's screenname with the Location service -- SNAC(02,0B)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <remarks>
         /// The function of this SNAC is unknown, but the official AIM client (5.9.3861) sends it sometime
         /// after SNAC(01,02) is sent.
         /// </remarks>
-		public static void SetSelfLocation(ISession sess)
+        public static void SetSelfLocation(Session sess)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.LocationService;
             sh.FamilySubtypeID = (ushort) 0x000B;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteByte((byte) Encoding.ASCII.GetByteCount(sess.ScreenName));
@@ -145,20 +118,20 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// Sets the user's interests list -- SNAC(02,0F)
         /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
+        /// <param name="sess">A <see cref="Session"/> object</param>
         /// <param name="allow"><c>true</c> if other users may search this information, <c>false</c> if not</param>
         /// <param name="interests">An array of interest names</param>
         /// <remarks>
         /// OSCAR allows a user to set up to five interests. If <paramref name="interests"/> contains
         /// more than five items, only the first five are used.
         /// </remarks>
-		public static void SetInterestsInformation(ISession sess, bool allow, string[] interests)
+        public static void SetInterestsInformation(Session sess, bool allow, string[] interests)
         {
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = (ushort) SNACFamily.LocationService;
             sh.FamilySubtypeID = (ushort) LocationServices.UpdateInterestsRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             using (TlvBlock tlvs = new TlvBlock())
@@ -171,31 +144,6 @@ namespace csammisrun.OscarLib.Utility
                 stream.WriteByteArray(tlvs.GetBytes());
             }
 
-            SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, stream));
-        }
-
-
-        /// <summary>
-        /// Requests user information from the server -- SNAC(02,15)
-        /// </summary>
-		/// <param name="sess">A <see cref="ISession"/> object</param>
-        /// <param name="screenname">The screenname to get information about</param>
-        /// <param name="requesttype">The type of information to retrieve</param>
-        /// <remarks>The <cparam>requesttype</cparam> field can be a single <see cref="UserInfoRequest"/>,
-        /// or several ORed together</remarks>
-		public static void RequestUserInfo(ISession sess, string screenname, UserInfoRequest requesttype)
-        {
-            // Build SNAC(02,15)
-            SNACHeader sh = new SNACHeader();
-            sh.FamilyServiceID = (ushort) SNACFamily.LocationService;
-            sh.FamilySubtypeID = (ushort) LocationServices.ExtendedInformationRequest;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
-
-            ByteStream stream = new ByteStream();
-            stream.WriteUint((uint) requesttype);
-            stream.WriteByte((byte) Encoding.ASCII.GetByteCount(screenname));
-            stream.WriteString(screenname, Encoding.ASCII);
             SNACFunctions.BuildFLAP(Marshal.BuildDataPacket(sess, sh, stream));
         }
     }

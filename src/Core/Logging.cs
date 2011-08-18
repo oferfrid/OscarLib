@@ -69,13 +69,13 @@ namespace csammisrun.OscarLib.Utility
             }
         }
 
-        public static void WriteString(string str)
+        public static void WriteString(string str, params object[] parameters)
         {
             if (sw != null)
             {
                 lock (sw)
                 {
-                    sw.WriteLine(DateTime.Now.ToString() + " - " + str);
+                    sw.WriteLine(DateTime.Now.ToString() + " - " + String.Format(str, parameters));
                     sw.WriteLine("");
                     sw.Flush();
                 }

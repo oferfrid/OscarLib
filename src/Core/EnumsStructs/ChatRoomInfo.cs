@@ -413,9 +413,8 @@ namespace csammisrun.OscarLib
             }
 
             SNACHeader sh = new SNACHeader();
-            sh.FamilyServiceID = (ushort) SNACFamily.ChatService;
+            sh.FamilyServiceID = 0x000E;
             sh.FamilySubtypeID = (ushort) ChatService.MessageFromClient;
-            sh.RequestID = Session.GetNextRequestID();
 
             byte[] cookie = new byte[8];
             Random r = new Random();
@@ -443,7 +442,7 @@ namespace csammisrun.OscarLib
 
             stream.WriteTlvBlock(tlvs);
 
-            DataPacket dp = Marshal.BuildDataPacket(Session.CurrentSession, sh, stream);
+            DataPacket dp = Marshal.BuildDataPacket(Connection.ParentSession, sh, stream);
             dp.ParentConnection = Connection;
             SNACFunctions.BuildFLAP(dp);
         }

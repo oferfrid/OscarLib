@@ -28,7 +28,7 @@ namespace csammisrun.OscarLib.Utility
         /// <summary>
         /// The session that owns the packet
         /// </summary>
-		public ISession ParentSession;
+        public Session ParentSession;
         /// <summary>
         /// The SNAC header that was either received with the packet
         /// or will determine how the packet is sent

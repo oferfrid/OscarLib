@@ -92,7 +92,7 @@ namespace csammisrun.OscarLib
         public event BuddyIconDownloadedHandler BuddyIconDownloaded;
         #endregion
 
-		private readonly ISession parent;
+        private readonly Session parent;
         private string autoSaveLocation;
         private BartID ownBuddyIcon;
         private readonly List<BartID> currentlyDownloading = new List<BartID>();
@@ -100,7 +100,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Initializes a new GraphicsManager
         /// </summary>
-		internal GraphicsManager(ISession parent)
+        internal GraphicsManager(Session parent)
         {
             this.parent = parent;
             parent.Dispatcher.RegisterSnacFamilyHandler(this, SNAC_BART_FAMILY);
@@ -169,7 +169,6 @@ namespace csammisrun.OscarLib
             sh.FamilyServiceID = SNAC_BART_FAMILY;
             sh.FamilySubtypeID = BART_UPLOAD;
             sh.Flags = 0;
-            sh.RequestID = Session.GetNextRequestID();
 
             ByteStream stream = new ByteStream();
             stream.WriteUshort((ushort)BartTypeId.BuddyIcon);
@@ -215,7 +214,7 @@ namespace csammisrun.OscarLib
             sh.FamilyServiceID = SNAC_BART_FAMILY;
             sh.FamilySubtypeID = BART_DOWNLOAD;
             sh.Flags = 0;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             ByteStream stream = new ByteStream();
             stream.WriteByte((byte)Encoding.ASCII.GetByteCount(screenName));

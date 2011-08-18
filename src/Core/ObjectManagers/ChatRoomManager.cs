@@ -66,7 +66,7 @@ namespace csammisrun.OscarLib
         private const int CHATROOM_MESSAGE_RECEIVED = 0x0006;
         #endregion
 
-		private readonly ISession parent;
+        private readonly Session parent;
         private readonly Dictionary<Cookie, ChatRoom> chatRoomInvitations =
             new Dictionary<Cookie, ChatRoom>();
         private readonly List<ChatRoom> waitingOnChatNavService =
@@ -85,7 +85,7 @@ namespace csammisrun.OscarLib
         /// <summary>
         /// Initializes a new ChatRoomManager
         /// </summary>
-		internal ChatRoomManager(ISession parent)
+        internal ChatRoomManager(Session parent)
         {
             this.parent = parent;
             parent.Dispatcher.RegisterSnacFamilyHandler(this, SNAC_CHATNAV_FAMILY);
@@ -202,8 +202,7 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_CHATNAV_FAMILY;
             sh.FamilySubtypeID = CHATNAV_PARAMETER_LIMITREQUEST;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
 
             chatParameterRequests[sh.RequestID] = "parameters";
 
@@ -230,8 +229,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = SNAC_CHATNAV_FAMILY;
             sh.FamilySubtypeID = CHATNAV_CREATE_ROOM;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream stream = new ByteStream();
             chatRoom.WriteToByteStream(stream);
@@ -251,8 +250,8 @@ namespace csammisrun.OscarLib
             SNACHeader sh = new SNACHeader();
             sh.FamilyServiceID = 0x0001;
             sh.FamilySubtypeID = 0x0004;
-            sh.Flags = 0x0000;
-            sh.RequestID = Session.GetNextRequestID();
+            
+            
 
             ByteStream chatStream = new ByteStream();
             chatStream.WriteUshort(chatRoom.Exchange);
