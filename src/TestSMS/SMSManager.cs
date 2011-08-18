@@ -19,7 +19,7 @@ namespace TestSMS
 	public class SMSManager
 	{
 
-		private ISession sess;
+		private Session sess;
 		private string number=string.Empty;
 		private string message=string.Empty;
 		private string Uid=string.Empty;
@@ -63,7 +63,7 @@ namespace TestSMS
 		
 
 		//*************Do Not Delete****************
-		private void sess_ContactListFinished(ISession sess, DateTime dt)
+		private void sess_ContactListFinished(Session sess, DateTime dt)
 		{
 			sess.ActivateBuddyList();
 		}
@@ -72,7 +72,7 @@ namespace TestSMS
 
 		private void Login()
 		{
-			sess.Logon("login.oscar.aol.com", 5190);
+			sess.Logon("login.icq.com", 5190,false);
 			
 		}
 		private void LogOf()
@@ -82,7 +82,7 @@ namespace TestSMS
 		}
 
 
-		private void sess_LoginCompleted(ISession sess)
+		private void sess_LoginCompleted(Session sess)
 		{
 			//Console.WriteLine("Login complete");
 			if (number!=string.Empty)
@@ -99,7 +99,7 @@ namespace TestSMS
 			LoginRetrys = 3;
 		}
 
-		private void sess_LoginFailed(ISession sess, LoginErrorCode reason)
+		private void sess_LoginFailed(Session sess, LoginErrorCode reason)
 		{
 			if (LoginRetrys >0)
 			{
@@ -115,17 +115,17 @@ namespace TestSMS
 			
 		}
 
-		private void sess_ErrorMessage(ISession sess, ServerErrorCode error)
+		private void sess_ErrorMessage(Session sess, ServerErrorCode error)
 		{
 			Console.WriteLine("Error: " + error);
 		}
 
-		private void sess_WarningMessage(ISession sess, ServerErrorCode error)
+		private void sess_WarningMessage(Session sess, ServerErrorCode error)
 		{
 			Console.WriteLine("Warning: " + error);
 		}
 
-		private void sess_StatusUpdate(ISession sess, string message)
+		private void sess_StatusUpdate(Session sess, string message)
 		{
 			Console.WriteLine("Status: " + message);
 		}

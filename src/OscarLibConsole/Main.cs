@@ -193,7 +193,15 @@ namespace OscarLib.OscarLibConsole
             while ((line = Console.ReadLine()) != "quit")
             {
                 start = DateTime.Now;
-                if (line.Equals("filesend"))
+                	if (line.Equals("sendsms"))
+				{
+					Console.WriteLine("Enter phone to send SMS to (+972XXXXXXXXX)" );
+					string phone = Console.ReadLine();
+					Console.WriteLine("Enter phone message" );
+					string message = Console.ReadLine();
+					sess.ICQ.SendSMSMessage(phone,message,"SMS");
+				}
+                else if (line.Equals("filesend"))
                 {
                     filecookie = sess.SendFile("560280115", "C:\\DevTools.exe");
                 }
