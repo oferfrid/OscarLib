@@ -522,7 +522,7 @@ namespace csammisrun.OscarLib
         {
             string url = "http://www.icq.com";
             string path = "/register/email_activation/sendEmailActivation.php";
-            string get = "?uin=" + parent.ScreenName + "&email=" + System.Web.HttpUtility.UrlEncode(email) + "&sessionKey="+ parent.Services.AuthCookie +"&version=605"; //&lang_id=de-de
+            string get = "?uin=" + parent.ScreenName + "&email=" + Uri.EscapeDataString(email).Replace("%20", "+")  + "&sessionKey="+ parent.Services.AuthCookie +"&version=605"; //&lang_id=de-de
             string regex = "(<answer)(.)*(code=\")(?<errorcode>[0-9]*)(\")(.)*(/>)";
 
             System.Net.WebRequest req = System.Net.WebRequest.Create(url + path + get);

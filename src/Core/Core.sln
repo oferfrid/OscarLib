@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+# SharpDevelop 4.0.0.7070
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core.csproj", "{86573648-6F6B-4C18-84D1-2FD904EA31BC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		AutomatedDebug|Any CPU = AutomatedDebug|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+		AutomatedDebug|Any CPU = AutomatedDebug|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+		Debug|BPC = Debug|BPC
+		Release|BPC = Release|BPC
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.AutomatedDebug|Any CPU.Build.0 = AutomatedDebug|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.AutomatedDebug|Any CPU.ActiveCfg = AutomatedDebug|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Debug|BPC.Build.0 = Debug|BPC
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Debug|BPC.ActiveCfg = Debug|BPC
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Release|BPC.Build.0 = Release|BPC
+		{86573648-6F6B-4C18-84D1-2FD904EA31BC}.Release|BPC.ActiveCfg = Release|BPC
+	EndGlobalSection
+EndGlobal
